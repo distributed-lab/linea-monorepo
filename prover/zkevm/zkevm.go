@@ -54,6 +54,10 @@ type ZkEvm struct {
 	WizardIOP *wizard.CompiledIOP
 }
 
+func (z *ZkEvm) Arithmetization() *arithmetization.Arithmetization {
+	return z.arithmetization
+}
+
 // NewZkEVM instantiates a new ZkEvm instance. The function returns a fully
 // initialized and compiled zkEVM object tuned with the caller's parameters and
 // the input compilation suite.

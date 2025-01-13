@@ -122,6 +122,10 @@ type ProverRuntime struct {
 	lock *sync.Mutex
 }
 
+func (c *CompiledIOP) CreateProver() ProverRuntime {
+	return c.createProver()
+}
+
 // Prove is the top-level function that runs the Prover on the user's side. It
 // is responsible for instantiating a fresh and new ProverRuntime and running
 // the user's and compiler's [ProverStep] in order and calling the Fiat-Shamir
