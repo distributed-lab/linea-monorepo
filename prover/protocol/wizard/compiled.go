@@ -629,3 +629,7 @@ func (c *CompiledIOP) RegisterVerifierAction(round int, action VerifierAction) {
 	// switch.
 	c.InsertVerifier(round, action.Run, action.RunGnark)
 }
+
+func (c *CompiledIOP) CreateProver() ProverRuntime {
+	return c.createProver()
+}

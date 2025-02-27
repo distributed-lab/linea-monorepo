@@ -120,6 +120,15 @@ func FullZkEVMCheckOnly(tl *config.TracesLimits) *ZkEvm {
 	return fullZkEvmCheckOnly
 }
 
+func FullZkEVMEmpty(tl *config.TracesLimits) *ZkEvm {
+
+	onceFullZkEvmCheckOnly.Do(func() {
+		fullZkEvmCheckOnly = fullZKEVMWithSuite(tl, compilationSuite{})
+	})
+
+	return fullZkEvmCheckOnly
+}
+
 func fullZKEVMWithSuite(tl *config.TracesLimits, suite compilationSuite) *ZkEvm {
 
 	// @Alex: only set mandatory parameters here. aka, the one that are not

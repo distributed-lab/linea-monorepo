@@ -155,3 +155,7 @@ func (z *ZkEvm) prove(input *Witness) (prover wizard.ProverStep) {
 func (z *ZkEvm) Limits() *config.TracesLimits {
 	return z.arithmetization.Settings.Limits
 }
+
+func (z *ZkEvm) Prove(input *Witness) (prover wizard.ProverStep) {
+	return z.prove(input)
+}
