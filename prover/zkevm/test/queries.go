@@ -17,23 +17,23 @@ func parseElementArray(v []field.Element) []Element {
 }
 
 type Operator struct {
-	Typ    byte    // 0 - constant, 1 - lin, 2 - poly, 3 - prod, 4 - var
-	Value  Element // for constant
-	Coeffs []int   // for lincomb and prod
-	Id     int     // for var
+	Typ    byte    `json:"typ"`    // 0 - constant, 1 - lin, 2 - poly, 3 - prod, 4 - var
+	Value  Element `json:"value"`  // for constant
+	Coeffs []int   `json:"coeffs"` // for lincomb and prod
+	Id     int     `json:"id"`     // for var
 }
 
 type Node struct {
-	Children []uint64
-	Operator Operator
+	Children []uint64 `json:"children"`
+	Operator Operator `json:"operator"`
 }
 
 type JSONGlobal struct {
-	Inputs    [][]Element
-	InputsIds []string
-	Nodes     [][]Node
-	Start     int
-	Stop      int
+	Inputs    [][]Element `json:"inputs"`
+	InputsIds []string    `json:"inputs_ids"`
+	Nodes     [][]Node    `json:"nodes"`
+	Start     int         `json:"start"`
+	Stop      int         `json:"stop"`
 }
 
 type JSONPermutation struct {
