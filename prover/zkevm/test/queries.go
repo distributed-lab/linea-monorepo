@@ -194,7 +194,7 @@ func (j *JSONLookup) splitAll(targetHeight int) {
 }
 
 func (j *JSONGlobal) height() int {
-	return len(j.Nodes[0])
+	return len(j.Inputs[0])
 }
 
 func (j *JSONGlobal) split() (*JSONGlobal, *JSONGlobal) {
@@ -227,6 +227,7 @@ func (j *JSONGlobal) split() (*JSONGlobal, *JSONGlobal) {
 
 func (j *JSONGlobal) splitColumns(targetHeight int) []*JSONGlobal {
 	res := []*JSONGlobal{j}
+	println(j.height())
 	for j.height() > targetHeight {
 		cur := make([]*JSONGlobal, 0, len(res)*2)
 
