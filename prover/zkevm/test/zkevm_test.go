@@ -85,15 +85,19 @@ func TestAIR(t *testing.T) {
 			parseGlobalQuery(&prover, q)
 		}
 	}
+
+	fmt.Printf("Total count:\n\tGlobal: %d\n\t", globalCounter)
 }
 
 var permCounter, lookupCounter, rangeCounter, globalCounter = 0, 0, 0, 0
 
 func parseGlobalQuery(runtime *wizard.ProverRuntime, q query.GlobalConstraint) {
+	fmt.Printf("Found globla: %s\n", q.ID)
+
 	board := q.Board()
 	metadatas := board.ListVariableMetadata()
 
-	fmt.Println("Range:", q.MinMaxOffset())
+	//fmt.Println("Range:", q.MinMaxOffset())
 
 	model := JSONGlobal{
 		Inputs:    make([][]Element, len(metadatas)),

@@ -17,6 +17,8 @@ import (
 	"github.com/consensys/linea-monorepo/prover/utils/parallel"
 )
 
+const PlonkSolve = true
+
 // Struct gathering synchronization variable for the prover
 type solverSync struct {
 	// The commitment witness
@@ -48,7 +50,6 @@ type (
 
 // Run implements the [wizard.ProverAction] interface.
 func (pa initialBBSProverAction) Run(run *wizard.ProverRuntime, wa WitnessAssigner) {
-
 	var (
 		ctx             = compilationCtx(pa.compilationCtx)
 		numEffInstances = wa.NumEffWitnesses(run)
@@ -96,19 +97,22 @@ func (pa initialBBSProverAction) Run(run *wizard.ProverRuntime, wa WitnessAssign
 				run.AssignColumn(ctx.Columns.TinyPI[i].GetColID(), pubWitSV)
 			}
 
-			// This starts the gnark solver in the background. The current
-			// function does not wait for it to terminate as it execution will
-			// span over the next round. The current function will however wait
-			// for Cp to be available before returning as we need it to derive
-			// the randomness.
-			go ctx.runGnarkPlonkProver(witness, &solSync)
+			// Run only of defined
+			if PlonkSolve {
+				// This starts the gnark solver in the background. The current
+				// function does not wait for it to terminate as it execution will
+				// span over the next round. The current function will however wait
+				// for Cp to be available before returning as we need it to derive
+				// the randomness.
+				go ctx.runGnarkPlonkProver(witness, &solSync)
 
-			// Get the commitment from the chan once ready
-			com := <-solSync.comChan
+				// Get the commitment from the chan once ready
+				com := <-solSync.comChan
 
-			// And assign it in the runtime
-			run.AssignColumn(ctx.Columns.Cp[i].GetColID(), smartvectors.NewRegular(com))
-			run.AssignColumn(ctx.Columns.Activators[i].GetColID(), smartvectors.NewConstant(field.One(), 1))
+				// And assign it in the runtime
+				run.AssignColumn(ctx.Columns.Cp[i].GetColID(), smartvectors.NewRegular(com))
+				run.AssignColumn(ctx.Columns.Activators[i].GetColID(), smartvectors.NewConstant(field.One(), 1))
+			}
 		}
 	})
 }
