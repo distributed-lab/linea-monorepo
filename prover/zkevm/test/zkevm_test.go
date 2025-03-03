@@ -63,13 +63,15 @@ func TestAIR(t *testing.T) {
 	zkevm := zkevm2.FullZkEVMEmpty(&cfg.TracesLimits)
 
 	prover := zkevm.WizardIOP.CreateProver()
+
 	out := execution.CraftProverOutput(cfg, req)
 	witness := execution.NewWitness(cfg, req, &out)
 	input := witness.ZkEVM
 	input.ExecTracesFPath = traceFile
+
 	zkevm.Prove(input)(&prover)
 
-	for _, subprover := range zkevm.WizardIOP.SubProvers.MustGet(0) {
+	for _, subprover := range prover.Spec.SubProvers.MustGet(0) {
 		subprover(&prover)
 	}
 
@@ -92,7 +94,7 @@ func TestAIR(t *testing.T) {
 var permCounter, lookupCounter, rangeCounter, globalCounter = 0, 0, 0, 0
 
 func parseGlobalQuery(runtime *wizard.ProverRuntime, q query.GlobalConstraint) {
-	fmt.Printf("Found globla: %s\n", q.ID)
+	fmt.Printf("Found global: %s\n", q.ID)
 
 	board := q.Board()
 	metadatas := board.ListVariableMetadata()
@@ -119,12 +121,22 @@ func parseGlobalQuery(runtime *wizard.ProverRuntime, q query.GlobalConstraint) {
 	for k, metadataInterface := range metadatas {
 		switch meta := metadataInterface.(type) {
 		case ifaces.Column:
+			if meta.Round() > 0 {
+				fmt.Println("Invalid query round -- Processing finished")
+				return
+			}
+
 			w := meta.GetColAssignment(runtime)
 			data := make([]field.Element, w.Len())
 			w.WriteInSlice(data)
 			model.Inputs[k] = parseElementArray(data)
 			model.InputsIds[k] = string(meta.GetColID())
 		case coin.Info:
+			if meta.Round > 0 {
+				fmt.Println("Invalid query round -- Processing finished")
+				return
+			}
+
 			// TODO
 			w := sv.NewConstant(runtime.GetRandomCoinField(meta.Name), q.DomainSize)
 			data := make([]field.Element, w.Len())
@@ -141,6 +153,11 @@ func parseGlobalQuery(runtime *wizard.ProverRuntime, q query.GlobalConstraint) {
 			w.WriteInSlice(data)
 			model.Inputs[k] = parseElementArray(data)
 		case ifaces.Accessor:
+			if meta.Round() > 0 {
+				fmt.Println("Invalid query round -- Processing finished")
+				return
+			}
+
 			w := sv.NewConstant(meta.GetVal(runtime), q.DomainSize)
 			data := make([]field.Element, w.Len())
 			w.WriteInSlice(data)
