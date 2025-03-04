@@ -176,6 +176,8 @@ func Prove(c *CompiledIOP, highLevelprover ProverStep) Proof {
 		messages.InsertNew(name, messageValue)
 	}
 
+	c.Runtime = runtime
+
 	return Proof{
 		Messages:      messages,
 		QueriesParams: runtime.QueriesParams,

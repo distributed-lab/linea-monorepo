@@ -62,18 +62,23 @@ func TestAIR(t *testing.T) {
 
 	zkevm := zkevm2.FullZkEVMEmpty(&cfg.TracesLimits)
 
-	prover := zkevm.WizardIOP.CreateProver()
+	//prover := zkevm.WizardIOP.CreateProver()
 
 	out := execution.CraftProverOutput(cfg, req)
 	witness := execution.NewWitness(cfg, req, &out)
 	input := witness.ZkEVM
 	input.ExecTracesFPath = traceFile
 
-	zkevm.Prove(input)(&prover)
+	zkevm.ProveInner(input)
+	prover := zkevm.WizardIOP.Runtime
 
-	for _, subprover := range prover.Spec.SubProvers.MustGet(0) {
-		subprover(&prover)
-	}
+	//i := 0
+	//for i < prover.Spec.NumRounds() {
+	//	for _, subprover := range prover.Spec.SubProvers.MustGet(i) {
+	//		subprover(&prover)
+	//	}
+	//	i++
+	//}
 
 	for _, k := range prover.Spec.QueriesNoParams.AllKeysAt(0) {
 		switch q := prover.Spec.QueriesNoParams.Data(k).(type) {
@@ -121,10 +126,11 @@ func parseGlobalQuery(runtime *wizard.ProverRuntime, q query.GlobalConstraint) {
 	for k, metadataInterface := range metadatas {
 		switch meta := metadataInterface.(type) {
 		case ifaces.Column:
-			if meta.Round() > 0 {
-				fmt.Println("Invalid query round -- Processing finished")
-				return
-			}
+			//if meta.Round() > 0 {
+			//	fmt.Println("Invalid query round -- Processing finished")
+			//	fmt.Println("Column", meta.GetColID())
+			//	return
+			//}
 
 			w := meta.GetColAssignment(runtime)
 			data := make([]field.Element, w.Len())
@@ -132,10 +138,10 @@ func parseGlobalQuery(runtime *wizard.ProverRuntime, q query.GlobalConstraint) {
 			model.Inputs[k] = parseElementArray(data)
 			model.InputsIds[k] = string(meta.GetColID())
 		case coin.Info:
-			if meta.Round > 0 {
-				fmt.Println("Invalid query round -- Processing finished")
-				return
-			}
+			//if meta.Round > 0 {
+			//	fmt.Println("Invalid query round -- Processing finished")
+			//	return
+			//}
 
 			// TODO
 			w := sv.NewConstant(runtime.GetRandomCoinField(meta.Name), q.DomainSize)
@@ -153,10 +159,10 @@ func parseGlobalQuery(runtime *wizard.ProverRuntime, q query.GlobalConstraint) {
 			w.WriteInSlice(data)
 			model.Inputs[k] = parseElementArray(data)
 		case ifaces.Accessor:
-			if meta.Round() > 0 {
-				fmt.Println("Invalid query round -- Processing finished")
-				return
-			}
+			//if meta.Round() > 0 {
+			//	fmt.Println("Invalid query round -- Processing finished")
+			//	return
+			//}
 
 			w := sv.NewConstant(meta.GetVal(runtime), q.DomainSize)
 			data := make([]field.Element, w.Len())

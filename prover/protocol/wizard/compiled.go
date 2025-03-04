@@ -120,6 +120,8 @@ type CompiledIOP struct {
 	//
 	// For efficiency reasons, the fiatShamirSetup is derived using SHA2.
 	fiatShamirSetup field.Element
+
+	Runtime ProverRuntime
 }
 
 // NumRounds returns the total number of prover interactions with the verifier
