@@ -23,7 +23,7 @@ import (
 )
 
 const Save = true
-const TargetHeight = 1 << 16
+const TargetHeight = 1 << 13
 
 func ReadRequest(path string, into any) error {
 	f, err := os.Open(path)
@@ -38,6 +38,8 @@ func ReadRequest(path string, into any) error {
 
 	return nil
 }
+
+var data = [][]string{}
 
 func TestAIR(t *testing.T) {
 	traceFile := "/root/data/conflated/1-57.conflated.v0.8.0-rc8.lt"
@@ -80,7 +82,7 @@ func TestAIR(t *testing.T) {
 	//	i++
 	//}
 
-	for _, k := range prover.Spec.QueriesNoParams.AllKeysAt(0) {
+	for _, k := range prover.Spec.QueriesNoParams.AllKeys() {
 		switch q := prover.Spec.QueriesNoParams.Data(k).(type) {
 		//case query.Permutation:
 		//	parsePermutationQuery(&prover, q)
