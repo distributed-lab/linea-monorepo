@@ -42,10 +42,10 @@ func ReadRequest(path string, into any) error {
 var data = [][]string{}
 
 func TestAIR(t *testing.T) {
-	traceFile := "/root/data/conflated/1-57.conflated.v0.8.0-rc8.lt"
+	traceFile := "../1-57.conflated.v0.8.0-rc8.lt"
 	//traceFile := "/Users/olegfomenko/Documents/Linea/test/conflated/1-57.conflated.v0.8.0-rc8.lt"
 
-	requestFile := "/root/data/requests/1-57-etv0.2.0-stv2.2.0-getZkProof.json"
+	requestFile := "../1-57-etv0.2.0-stv2.2.0-getZkProof.json"
 	//requestFile := "/Users/olegfomenko/Documents/Linea/test/requests/1-57-etv0.2.0-stv2.2.0-getZkProof.json"
 
 	cfgFile := "../../config/config-sepolia-full.toml"
@@ -86,19 +86,28 @@ func TestAIR(t *testing.T) {
 		switch q := prover.Spec.QueriesNoParams.Data(k).(type) {
 		//case query.Permutation:
 		//	parsePermutationQuery(&prover, q)
-		//case query.Inclusion:
-		//	parseLookupQuery(&prover, q)
-		//case query.Range:
-		//	parseRangeQuery(&prover, q)
+		case query.Inclusion:
+			parseLookupQuery(&prover, q)
+		case query.Range:
+			parseRangeQuery(&prover, q)
 		case query.GlobalConstraint:
 			parseGlobalQuery(&prover, q)
 		}
 	}
 
 	fmt.Printf("Total count:\n\tGlobal: %d\n\t", globalCounter)
+	fmt.Printf("Max height: %d\n", maxHeight)
+	fmt.Printf("Max index: %d\n", maxIndex)
+
+	fmt.Printf("Permutations: %d\n", permCounter)
+	fmt.Printf("Lookups: %d\n", lookupCounter)
+	fmt.Printf("Ranges: %d\n", rangeCounter)
+	fmt.Printf("Globals: %d\n", globalCounter)
 }
 
 var permCounter, lookupCounter, rangeCounter, globalCounter = 0, 0, 0, 0
+
+var maxHeight, maxIndex = 0, 0
 
 func parseGlobalQuery(runtime *wizard.ProverRuntime, q query.GlobalConstraint) {
 	fmt.Printf("Found global: %s\n", q.ID)
@@ -207,15 +216,27 @@ func parseGlobalQuery(runtime *wizard.ProverRuntime, q query.GlobalConstraint) {
 		}
 	}
 
+	models := model.splitColumns(TargetHeight)
+
+	//for _, model := range models {
+	//	if len(model.Nodes) > maxHeight {
+	//		maxHeight = len(model.Nodes)
+	//		maxIndex = globalCounter
+	//	}
+	//}
+
 	if !Save {
 		return
 	}
 
-	models := model.splitColumns(TargetHeight)
-
 	for _, model := range models {
 		if !model.isActive() {
 			continue
+		}
+
+		if len(model.Nodes) > maxHeight {
+			maxHeight = len(model.Nodes)
+			maxIndex = globalCounter
 		}
 
 		println("Marshalling...")

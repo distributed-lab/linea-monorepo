@@ -84,10 +84,6 @@ func (j *JSONRange) splitAll(targetHeight int) {
 	for j.heightA() > targetHeight {
 		j.splitA()
 	}
-
-	if j.B > targetHeight {
-		panic("invalid B size")
-	}
 }
 
 func (j *JSONLookup) heightA() int {
