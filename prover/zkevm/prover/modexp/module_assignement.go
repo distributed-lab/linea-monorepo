@@ -1,11 +1,11 @@
 package modexp
 
 import (
+	"github.com/consensys/linea-monorepo/prover/utils"
 	"os"
 
 	"github.com/consensys/linea-monorepo/prover/maths/field"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
-	"github.com/consensys/linea-monorepo/prover/utils"
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 	"github.com/sirupsen/logrus"
 )
@@ -28,7 +28,7 @@ func (mod *Module) Assign(run *wizard.ProverRuntime) {
 	var limbs [limbsScaleNumber][]field.Element
 
 	for i := range limbsScaleNumber {
-		limbs[i] = mod.Input.Limbs[0].GetColAssignment(run).IntoRegVecSaveAlloc()
+		limbs[i] = mod.Input.Limbs[i].GetColAssignment(run).IntoRegVecSaveAlloc()
 	}
 
 	var (
@@ -55,7 +55,6 @@ func (mod *Module) Assign(run *wizard.ProverRuntime) {
 	)
 
 	limbSize := len(limbs[0])
-
 	for currPosition := 0; currPosition < limbSize; {
 
 		if isModexp[currPosition].IsZero() {
@@ -65,8 +64,10 @@ func (mod *Module) Assign(run *wizard.ProverRuntime) {
 
 		// This sanity-check is purely defensive and will indicate that we
 		// missed the start of a Modexp instance
-		if len(limbs)-currPosition < modexpNumRowsPerInstance {
-			utils.Panic("A new modexp is starting but there is not enough rows (currPosition=%v len(ecdata.Limb)=%v)", currPosition, len(limbs))
+		for i := range limbsScaleNumber {
+			if len(limbs[i])-currPosition < modexpNumRowsPerInstance {
+				utils.Panic("A new modexp is starting but there is not enough rows (currPosition=%v len(ecdata.Limb)=%v)", currPosition, len(limbs))
+			}
 		}
 
 		isLarge := false

@@ -247,15 +247,17 @@ func (mod *Module) csIsSmallAndLarge(comp *wizard.CompiledIOP) {
 	// not be wrong to supply
 	//
 
-	comp.InsertGlobal(
-		0,
-		"MODEXP_IS_SMALL_IMPLIES_SMALL_OPERANDS",
-		sym.Mul(
-			mod.Limbs,
-			mod.IsSmall,
-			sym.Sub(1, mod.LsbIndicator),
-		),
-	)
+	for i := 0; i < limbsScaleNumber; i++ {
+		comp.InsertGlobal(
+			0,
+			ifaces.QueryIDf("MODEXP_IS_SMALL_IMPLIES_SMALL_OPERANDS_%d", i),
+			sym.Mul(
+				mod.Limbs[i],
+				mod.IsSmall,
+				sym.Sub(1, mod.LsbIndicator),
+			),
+		)
+	}
 }
 
 // csToCirc ensures the well-construction of ant.ToSmallCirc
