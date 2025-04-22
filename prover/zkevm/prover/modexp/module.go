@@ -113,8 +113,8 @@ func newModule(comp *wizard.CompiledIOP, input Input) *Module {
 		projection.InsertProjection(
 			comp,
 			ifaces.QueryID(fmt.Sprintf("MODEXP_BLKMDXP_PROJECTION_%d", i)),
-			[]ifaces.Column{mod.Input.Limbs[i]},
-			[]ifaces.Column{mod.Limbs[i]},
+			mod.Input.Limbs[:],
+			mod.Limbs[:],
 			mod.Input.isModExp,
 			mod.IsActive,
 		)
@@ -299,7 +299,7 @@ func mustCancelWhenBinCancel(comp *wizard.CompiledIOP, bin ifaces.Column, c [lim
 			ifaces.QueryIDf("%v_CANCEL_WHEN_NOT_%v", c[i].GetColID(), bin.GetColID()),
 			sym.Mul(
 				sym.Sub(1, bin),
-				c,
+				c[i],
 			),
 		)
 	}
