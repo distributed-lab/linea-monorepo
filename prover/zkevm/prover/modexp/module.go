@@ -1,6 +1,7 @@
 package modexp
 
 import (
+	"fmt"
 	"github.com/consensys/linea-monorepo/prover/maths/common/smartvectors"
 	"github.com/consensys/linea-monorepo/prover/maths/field"
 	"github.com/consensys/linea-monorepo/prover/protocol/column"
@@ -23,6 +24,9 @@ const (
 	// instance of modexp are taken care of by a single gnark circuit in the
 	// "small" variant (256 bits) or the "large" variant (4096 bits)
 	nbInstancePerCircuit256, nbInstancePerCircuit4096 = 10, 1
+
+	// Limbs scale
+	limbsScaleNumber = 8
 )
 
 // Module implements the wizard part responsible for checking the MODEXP
@@ -43,7 +47,7 @@ type Module struct {
 	// Limb contains the modexp arguments and is subjected to a projection
 	// constraint from the BLK_MDXP (using IsActive as filter). It is constrained
 	// to zero when IsActive = 0.
-	Limbs ifaces.Column
+	Limbs [limbsScaleNumber]ifaces.Column
 	// LsbIndicator is a precomputed column marking with a 1 the last two limbs
 	// of every operands. The column is precomputed because all Modexp provided
 	// by the arithmetization have exactly the same layout.
@@ -82,11 +86,20 @@ func newModule(comp *wizard.CompiledIOP, input Input) *Module {
 			MaxNb256BitsInstances:  settings.MaxNbInstance256,
 			MaxNb4096BitsInstances: settings.MaxNbInstance4096,
 			IsActive:               comp.InsertCommit(0, "MODEXP_IS_ACTIVE", size),
-			Limbs:                  comp.InsertCommit(0, "MODEXP_LIMBS", size),
-			IsSmall:                comp.InsertCommit(0, "MODEXP_IS_SMALL", size),
-			IsLarge:                comp.InsertCommit(0, "MODEXP_IS_LARGE", size),
-			LsbIndicator:           comp.InsertPrecomputed("MODEXP_LSB_INDICATOR", lsbIndicatorValue(size)),
-			ToSmallCirc:            comp.InsertCommit(0, "MODEXP_TO_SMALL_CIRC", size),
+			Limbs: [limbsScaleNumber]ifaces.Column{
+				comp.InsertCommit(0, "MODEXP_LIMBS_0", size),
+				comp.InsertCommit(0, "MODEXP_LIMBS_1", size),
+				comp.InsertCommit(0, "MODEXP_LIMBS_2", size),
+				comp.InsertCommit(0, "MODEXP_LIMBS_3", size),
+				comp.InsertCommit(0, "MODEXP_LIMBS_4", size),
+				comp.InsertCommit(0, "MODEXP_LIMBS_5", size),
+				comp.InsertCommit(0, "MODEXP_LIMBS_6", size),
+				comp.InsertCommit(0, "MODEXP_LIMBS_7", size),
+			},
+			IsSmall:      comp.InsertCommit(0, "MODEXP_IS_SMALL", size),
+			IsLarge:      comp.InsertCommit(0, "MODEXP_IS_LARGE", size),
+			LsbIndicator: comp.InsertPrecomputed("MODEXP_LSB_INDICATOR", lsbIndicatorValue(size)),
+			ToSmallCirc:  comp.InsertCommit(0, "MODEXP_TO_SMALL_CIRC", size),
 		}
 	)
 
@@ -96,16 +109,23 @@ func newModule(comp *wizard.CompiledIOP, input Input) *Module {
 	mod.csIsSmallAndLarge(comp)
 	mod.csToCirc(comp)
 
-	projection.InsertProjection(
-		comp,
-		"MODEXP_BLKMDXP_PROJECTION",
-		[]ifaces.Column{mod.Input.Limbs},
-		[]ifaces.Column{mod.Limbs},
-		mod.Input.isModExp,
-		mod.IsActive,
-	)
+	for i := range limbsScaleNumber {
+		projection.InsertProjection(
+			comp,
+			ifaces.QueryID(fmt.Sprintf("MODEXP_BLKMDXP_PROJECTION_%d", i)),
+			[]ifaces.Column{mod.Input.Limbs[i]},
+			[]ifaces.Column{mod.Limbs[i]},
+			mod.Input.isModExp,
+			mod.IsActive,
+		)
+	}
 
 	return mod
+}
+
+func limbToCircuit_Mocked(limb [limbsScaleNumber]ifaces.Column) ifaces.Column {
+	panic("Mock")
+	return nil
 }
 
 // WithCircuits adds the Plonk-in-Wizard circuit verification to complete
@@ -118,7 +138,7 @@ func (mod *Module) WithCircuit(comp *wizard.CompiledIOP, options ...plonk.Option
 		comp,
 		&plonk.CircuitAlignmentInput{
 			Name:               "MODEXP_256_BITS",
-			DataToCircuit:      mod.Limbs,
+			DataToCircuit:      limbToCircuit_Mocked(mod.Limbs),
 			DataToCircuitMask:  mod.ToSmallCirc,
 			Circuit:            allocateCircuit(nbInstancePerCircuit256, 256),
 			NbCircuitInstances: utils.DivCeil(mod.MaxNb256BitsInstances, nbInstancePerCircuit256),
@@ -130,7 +150,7 @@ func (mod *Module) WithCircuit(comp *wizard.CompiledIOP, options ...plonk.Option
 		comp,
 		&plonk.CircuitAlignmentInput{
 			Name:               "MODEXP_4096_BITS",
-			DataToCircuit:      mod.Limbs,
+			DataToCircuit:      limbToCircuit_Mocked(mod.Limbs),
 			DataToCircuitMask:  mod.IsLarge,
 			Circuit:            allocateCircuit(nbInstancePerCircuit4096, 4096),
 			NbCircuitInstances: utils.DivCeil(mod.MaxNb4096BitsInstances, nbInstancePerCircuit4096),
@@ -272,14 +292,15 @@ func mustBeBinary(comp *wizard.CompiledIOP, c ifaces.Column) {
 // mustCancelWhenBinCancel enforces to 'c' to be zero when the binary column
 // `bin` is zero. The constraint does not work if bin is not constrained to be
 // binary.
-func mustCancelWhenBinCancel(comp *wizard.CompiledIOP, bin, c ifaces.Column) {
-
-	comp.InsertGlobal(
-		0,
-		ifaces.QueryIDf("%v_CANCEL_WHEN_NOT_%v", c.GetColID(), bin.GetColID()),
-		sym.Mul(
-			sym.Sub(1, bin),
-			c,
-		),
-	)
+func mustCancelWhenBinCancel(comp *wizard.CompiledIOP, bin ifaces.Column, c [limbsScaleNumber]ifaces.Column) {
+	for i := range limbsScaleNumber {
+		comp.InsertGlobal(
+			0,
+			ifaces.QueryIDf("%v_CANCEL_WHEN_NOT_%v", c[i].GetColID(), bin.GetColID()),
+			sym.Mul(
+				sym.Sub(1, bin),
+				c,
+			),
+		)
+	}
 }
