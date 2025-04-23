@@ -1,16 +1,20 @@
 package ecarith
 
 import (
-	"fmt"
-
 	"github.com/consensys/gnark/frontend"
-	"github.com/consensys/gnark/std/algebra"
-	"github.com/consensys/gnark/std/algebra/emulated/sw_bn254"
-	"github.com/consensys/gnark/std/math/bitslice"
-	"github.com/consensys/gnark/std/math/emulated"
 	"github.com/consensys/linea-monorepo/prover/protocol/dedicated/plonk"
 	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
+	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
+	"github.com/consensys/linea-monorepo/prover/maths/common/smartvectors"
+	"github.com/consensys/linea-monorepo/prover/maths/field"
+	"github.com/consensys/linea-monorepo/prover/protocol/dedicated/projection"
+	"github.com/consensys/linea-monorepo/prover/protocol/column"
+	"github.com/consensys/gnark/std/math/emulated"
+	"fmt"
+	"github.com/consensys/gnark/std/algebra/emulated/sw_bn254"
+	"github.com/consensys/gnark/std/math/bitslice"
+	"github.com/consensys/gnark/std/algebra"
 )
 
 const (
@@ -19,29 +23,41 @@ const (
 
 const (
 	nbRowsPerEcAdd = 12
+	// nbLimbsCols defines the number of columns allocated for storing the limbs.
+	nbLimbsCols  = 8
+	nbTotalLimbs = nbRowsPerEcAdd * nbLimbsCols
 )
 
-// EcMulIntegration integrated EC_MUL precompile call verification inside a
+// EcAdd integrated EC_ADD precompile call verification inside a
 // gnark circuit.
 type EcAdd struct {
 	*EcDataAddSource
 	AlignedGnarkData *plonk.Alignment
+
+	// flattenLimbs is all the limbs' columns flattened into a single column.
+	flattenLimbs      ifaces.Column
+	auxProjectionMask ifaces.Column
 
 	size int
 	*Limits
 }
 
 func NewEcAddZkEvm(comp *wizard.CompiledIOP, limits *Limits) *EcAdd {
+	src := &EcDataAddSource{
+		CsEcAdd: comp.Columns.GetHandle("ecdata.CIRCUIT_SELECTOR_ECADD"),
+		Index:   comp.Columns.GetHandle("ecdata.INDEX"),
+		IsData:  comp.Columns.GetHandle("ecdata.IS_ECADD_DATA"),
+		IsRes:   comp.Columns.GetHandle("ecdata.IS_ECADD_RESULT"),
+	}
+
+	for i := 0; i < nbLimbsCols; i++ {
+		src.Limbs[i] = comp.Columns.GetHandle(ifaces.ColIDf("ecdata.LIMB_%d", i))
+	}
+
 	return newEcAdd(
 		comp,
 		limits,
-		&EcDataAddSource{
-			CsEcAdd: comp.Columns.GetHandle("ecdata.CIRCUIT_SELECTOR_ECADD"),
-			Limb:    comp.Columns.GetHandle("ecdata.LIMB"),
-			Index:   comp.Columns.GetHandle("ecdata.INDEX"),
-			IsData:  comp.Columns.GetHandle("ecdata.IS_ECADD_DATA"),
-			IsRes:   comp.Columns.GetHandle("ecdata.IS_ECADD_RESULT"),
-		},
+		src,
 		[]plonk.Option{plonk.WithRangecheck(16, 6, true)},
 	)
 }
@@ -49,28 +65,53 @@ func NewEcAddZkEvm(comp *wizard.CompiledIOP, limits *Limits) *EcAdd {
 // newEcAdd creates a new EC_ADD integration.
 func newEcAdd(comp *wizard.CompiledIOP, limits *Limits, src *EcDataAddSource, plonkOptions []plonk.Option) *EcAdd {
 	size := limits.sizeEcAddIntegration()
+	flattenLimbsSize := size * nbLimbsCols
+
+	flattenLimbsCol := comp.InsertCommit(0, "ecdata.ECADD_FLATTEN_LIMBS", flattenLimbsSize)
 
 	toAlign := &plonk.CircuitAlignmentInput{
-		Name:               NAME_ECADD + "_ALIGNMENT",
-		Round:              ROUND_NR,
-		DataToCircuitMask:  src.CsEcAdd,
-		DataToCircuit:      src.Limb,
+		Name:  NAME_ECADD + "_ALIGNMENT",
+		Round: ROUND_NR,
+		DataToCircuitMask: comp.InsertPrecomputed("ecdata.DATA_TO_CIRCUIT_MASK",
+			precomputeDataToCircuitMask(limits.NbCircuitInstances*nbTotalLimbs, flattenLimbsSize)),
+		DataToCircuit:      flattenLimbsCol,
 		Circuit:            NewECAddCircuit(limits),
 		NbCircuitInstances: limits.NbCircuitInstances,
 		PlonkOptions:       plonkOptions,
 		InputFiller:        nil, // not necessary: 0 * (0,0) = (0,0) with complete arithmetic
 	}
+
 	res := &EcAdd{
 		EcDataAddSource:  src,
 		AlignedGnarkData: plonk.DefineAlignment(comp, toAlign),
-		size:             size,
+		flattenLimbs:     flattenLimbsCol,
+		auxProjectionMask: comp.InsertPrecomputed("ecdata.AUX_PROJECTION_MASK",
+			precomputeAuxProjectionMask(flattenLimbsSize, limits.NbCircuitInstances*nbRowsPerEcAdd, nbLimbsCols)),
+		size: size,
 	}
+
+	res.csEcDataProjection(comp)
 
 	return res
 }
 
 // Assign assigns the data from the trace to the gnark inputs.
 func (em *EcAdd) Assign(run *wizard.ProverRuntime) {
+	var limbsCols [nbLimbsCols][]field.Element
+
+	for i, limbs := range em.Limbs {
+		limbsCols[i] = limbs.GetColAssignment(run).IntoRegVecSaveAlloc()
+	}
+
+	flattenLimbs := common.NewVectorBuilder(em.flattenLimbs)
+	for i := 0; i < em.Limbs[0].Size(); i++ {
+		for j := 0; j < nbLimbsCols; j++ {
+			flattenLimbs.PushField(limbsCols[j][i])
+		}
+	}
+
+	flattenLimbs.PadAndAssign(run, field.Zero())
+
 	em.AlignedGnarkData.Assign(run)
 }
 
@@ -78,7 +119,7 @@ func (em *EcAdd) Assign(run *wizard.ProverRuntime) {
 // fetch data from the EC_DATA module from the arithmetization.
 type EcDataAddSource struct {
 	CsEcAdd ifaces.Column
-	Limb    ifaces.Column
+	Limbs   [nbLimbsCols]ifaces.Column
 	Index   ifaces.Column
 	IsData  ifaces.Column
 	IsRes   ifaces.Column
@@ -93,20 +134,20 @@ type MultiECAddCircuit struct {
 
 type ECAddInstance struct {
 	// First input to addition
-	P_X_hi, P_X_lo frontend.Variable `gnark:",public"`
-	P_Y_hi, P_Y_lo frontend.Variable `gnark:",public"`
+	P_X_hi, P_X_lo [nbLimbsCols]frontend.Variable `gnark:",public"`
+	P_Y_hi, P_Y_lo [nbLimbsCols]frontend.Variable `gnark:",public"`
 
 	// Second input to addition
-	Q_X_hi, Q_X_lo frontend.Variable `gnark:",public"`
-	Q_Y_hi, Q_Y_lo frontend.Variable `gnark:",public"`
+	Q_X_hi, Q_X_lo [nbLimbsCols]frontend.Variable `gnark:",public"`
+	Q_Y_hi, Q_Y_lo [nbLimbsCols]frontend.Variable `gnark:",public"`
 
 	// The result of the addition. Is provided non-deterministically by the
 	// caller, we have to ensure that the result is correct.
-	R_X_hi, R_X_lo frontend.Variable `gnark:",public"`
-	R_Y_hi, R_Y_lo frontend.Variable `gnark:",public"`
+	R_X_hi, R_X_lo [nbLimbsCols]frontend.Variable `gnark:",public"`
+	R_Y_hi, R_Y_lo [nbLimbsCols]frontend.Variable `gnark:",public"`
 }
 
-// NewECMulCircuit creates a new circuit for verifying the EC_MUL precompile
+// NewECAddCircuit creates a new circuit for verifying the EC_MUL precompile
 // based on the defined number of inputs.
 func NewECAddCircuit(limits *Limits) *MultiECAddCircuit {
 	return &MultiECAddCircuit{
@@ -181,4 +222,40 @@ func (c *MultiECAddCircuit) Define(api frontend.API) error {
 		curve.AssertIsEqual(&Rs[i], res)
 	}
 	return nil
+}
+
+func (em *EcAdd) csEcDataProjection(comp *wizard.CompiledIOP) {
+	var shiftedFlattenCols [nbLimbsCols]ifaces.Column
+	for i := 0; i < nbLimbsCols; i++ {
+		shiftedFlattenCols[i] = column.Shift(em.flattenLimbs, i)
+	}
+
+	projection.InsertProjection(comp, ifaces.QueryIDf("%v_PROJECT_ECDATA", NAME_ECADD),
+		shiftedFlattenCols[:], em.Limbs[:],
+		em.auxProjectionMask, em.CsEcAdd,
+	)
+}
+
+// precomputeDataToCircuitMask creates and returns a SmartVector with the first `masked` elements
+// set to one and the rest as zero.
+func precomputeDataToCircuitMask(masked int, size int) smartvectors.SmartVector {
+	resSlice := make([]field.Element, size)
+
+	for i := 0; i < masked; i++ {
+		resSlice[i].SetOne()
+	}
+
+	return smartvectors.NewRegular(resSlice)
+}
+
+// precomputeAuxProjectionMask creates a SmartVector with total size `size`,
+// where `nbMasked` positions are periodically set to one.
+func precomputeAuxProjectionMask(size, nbMasked, period int) smartvectors.SmartVector {
+	resSlice := make([]field.Element, size)
+
+	for i := 0; i < nbMasked; i++ {
+		resSlice[i*period].SetOne()
+	}
+
+	return smartvectors.NewRegular(resSlice)
 }
