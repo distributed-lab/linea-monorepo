@@ -13,6 +13,8 @@ import (
 	"github.com/consensys/linea-monorepo/prover/protocol/dedicated/plonk"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
 	"github.com/consensys/linea-monorepo/prover/utils/csvtraces"
+	"fmt"
+	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 )
 
 var (
@@ -95,11 +97,15 @@ func TestEcMulIntegration(t *testing.T) {
 		func(b *wizard.Builder) {
 			ecMulSource = &EcDataMulSource{
 				CsEcMul: ct.GetCommit(b, "CS_MUL"),
-				Limb:    ct.GetCommit(b, "LIMB"),
 				Index:   ct.GetCommit(b, "INDEX"),
 				IsData:  ct.GetCommit(b, "IS_DATA"),
 				IsRes:   ct.GetCommit(b, "IS_RES"),
 			}
+
+			for i := 0; i < common.NbFlattenColLimbs; i++ {
+				ecMulSource.Limbs[i] = ct.GetCommit(b, fmt.Sprintf("LIMB_%d", i))
+			}
+
 			ecMul = newEcMul(b.CompiledIOP, limits, ecMulSource, []plonk.Option{plonk.WithRangecheck(16, 6, true)})
 		},
 		dummy.Compile,
@@ -107,7 +113,7 @@ func TestEcMulIntegration(t *testing.T) {
 
 	proof := wizard.Prove(cmp,
 		func(run *wizard.ProverRuntime) {
-			ct.Assign(run, "CS_MUL", "LIMB", "INDEX", "IS_DATA", "IS_RES")
+			ct.Assign(run, "CS_MUL", "LIMB_0", "LIMB_1", "LIMB_2", "LIMB_3", "LIMB_4", "LIMB_5", "LIMB_6", "LIMB_7", "INDEX", "IS_DATA", "IS_RES")
 			ecMul.Assign(run)
 		})
 
