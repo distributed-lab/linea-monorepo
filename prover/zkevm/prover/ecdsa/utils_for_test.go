@@ -1,6 +1,7 @@
 package ecdsa
 
 import (
+	"fmt"
 	"github.com/consensys/linea-monorepo/prover/crypto/keccak"
 	"github.com/consensys/linea-monorepo/prover/maths/common/smartvectors"
 	"github.com/consensys/linea-monorepo/prover/maths/common/vector"
@@ -9,22 +10,27 @@ import (
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
 	"github.com/consensys/linea-monorepo/prover/utils"
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/hash/generic"
+	"slices"
 
 	"golang.org/x/crypto/sha3"
 )
 
 func commitEcRecTxnData(comp *wizard.CompiledIOP, size1 int, size int, ac *antichamber) (td *txnData, ecRec *EcRecover) {
+	var from [txnDataFromColsNumber]ifaces.Column
+	for i := 0; i < txnDataFromColsNumber; i++ {
+		from[i] = comp.InsertCommit(0, ifaces.ColID(fmt.Sprintf("txndata.From_%d", i)), size1)
+	}
+
 	td = &txnData{
-		fromHi: comp.InsertCommit(0, ifaces.ColIDf("txn_data.FromHi"), size1),
-		fromLo: comp.InsertCommit(0, ifaces.ColIDf("txn_data.FromLo"), size1),
-		ct:     comp.InsertCommit(0, ifaces.ColIDf("txn_data.CT"), size1),
+		from: from,
+		ct:   comp.InsertCommit(0, ifaces.ColIDf("txn_data.CT"), size1),
 	}
 
 	ecRec = &EcRecover{
 		Limb:           comp.InsertCommit(0, ifaces.ColIDf("ECRECOVER_LIMB"), size),
 		EcRecoverIsRes: comp.InsertCommit(0, ifaces.ColIDf("ECRECOVER_ISRES"), size),
 	}
-	ac.IsActive = comp.InsertCommit(0, ifaces.ColID("AntiChamber_IsActive"), size)
+	ac.IsActive = comp.InsertCommit(0, "AntiChamber_IsActive", size)
 	return td, ecRec
 }
 
@@ -37,7 +43,8 @@ func AssignEcRecTxnData(
 	ac *antichamber,
 ) {
 
-	permTrace := keccak.GenerateTrace(gbm.ScanStreams(run))
+	streams := gbm.ScanStreams(run)
+	permTrace := keccak.GenerateTrace(streams)
 
 	// now assign ecRecover.Limb and txn_data.From from the permutation trace.
 	isEcRecRes := make([]field.Element, nbEcRec*nbRowsPerEcRec)
@@ -51,14 +58,22 @@ func AssignEcRecTxnData(
 		}
 	}
 
-	fromHi := make([]field.Element, nbTxS*nbRowsPerTxInTxnData)
-	fromLo := make([]field.Element, nbTxS*nbRowsPerTxInTxnData)
+	// Initialize an array of from limbs columns
+	from := make([][]field.Element, 0, txnDataFromColsNumber)
+	for i := 0; i < txnDataFromColsNumber; i++ {
+		from = append(from, make([]field.Element, nbTxS*nbRowsPerTxInTxnData))
+	}
+
 	offSetEcRec := 0
 
 	if nbEcRec+nbTxS != len(permTrace.HashOutPut) {
 		utils.Panic("the number of generated hash %v should be %v + %v", len(permTrace.HashOutPut), nbEcRec, nbTxS)
 	}
+
 	for i, hashRes := range permTrace.HashOutPut {
+		slices.Reverse(hashRes[:])
+
+		fromLimbs := divideBytes(hashRes[:])
 
 		if i < nbEcRec {
 			isEcRecRes[i*nbRowsPerEcRec+offSetEcRec] = field.One()
@@ -66,11 +81,14 @@ func AssignEcRecTxnData(
 
 			ecRecLimb[i*nbRowsPerEcRec+offSetEcRec].SetBytes(hashRes[halfDigest-trimmingSize : halfDigest])
 			ecRecLimb[i*nbRowsPerEcRec+offSetEcRec+1].SetBytes(hashRes[halfDigest:])
+			continue
 		} else {
 			j := i - nbEcRec
 
-			fromHi[j*nbRowsPerTxInTxnData].SetBytes(hashRes[halfDigest-trimmingSize : halfDigest])
-			fromLo[j*nbRowsPerTxInTxnData].SetBytes(hashRes[halfDigest:])
+			for k, limb := range fromLimbs {
+				// Initialize limb values for each column of from
+				from[k][j*nbRowsPerTxInTxnData].SetBytes(limb[:])
+			}
 		}
 	}
 
@@ -78,8 +96,10 @@ func AssignEcRecTxnData(
 	run.AssignColumn(ecRec.Limb.GetColID(), smartvectors.RightZeroPadded(ecRecLimb, size))
 
 	// they are arithmetization columns, so LeftZeroPad
-	run.AssignColumn(td.fromHi.GetColID(), smartvectors.LeftZeroPadded(fromHi, sizeTxnData))
-	run.AssignColumn(td.fromLo.GetColID(), smartvectors.LeftZeroPadded(fromLo, sizeTxnData))
+	for i := 0; i < txnDataFromColsNumber; i++ {
+		run.AssignColumn(td.from[i].GetColID(), smartvectors.LeftZeroPadded(from[i], sizeTxnData))
+	}
+
 	run.AssignColumn(td.ct.GetColID(), smartvectors.LeftZeroPadded(ctWit, sizeTxnData))
 
 	effectiveSize := nbEcRec*nbRowsPerEcRec + nbTxS*nbRowsPerTxSign
@@ -115,6 +135,7 @@ func (td *txnData) assignTxnDataFromPK(
 			utils.Panic("error generating signature")
 		}
 		buf := pk.A.RawBytes()
+
 		hasher.Write(buf[:])
 		res := hasher.Sum(nil)
 		hasher.Reset()
@@ -131,28 +152,40 @@ func (td *txnData) assignTxnDataFromPK(
 	}
 
 	// populate the columns FromHi and FromLo
-	fromHi := make([]field.Element, maxNbTx*nbRowsPerTxInTxnData)
-	fromLo := make([]field.Element, maxNbTx*nbRowsPerTxInTxnData)
+	from := make([][]field.Element, 0, txnDataFromColsNumber)
+	for i := 0; i < txnDataFromColsNumber; i++ {
+		from = append(from, make([]field.Element, maxNbTx*nbRowsPerTxInTxnData))
+	}
 
 	for i := 0; i < len(pkHash); i++ {
-		fromHi[i*nbRowsPerTxInTxnData].SetBytes(pkHash[i][halfDigest-trimmingSize : halfDigest])
-		fromLo[i*nbRowsPerTxInTxnData].SetBytes(pkHash[i][halfDigest:])
+		fromLimbs := divideBytes(pkHash[i])
 
+		for j, limb := range fromLimbs {
+			// Initialize limb values for each column of from
+			from[j][i*nbRowsPerTxInTxnData].SetBytes(limb[:])
+		}
 	}
 
 	// these are arithmetization columns, so LeftZeroPad
-	run.AssignColumn(td.fromHi.GetColID(), smartvectors.LeftZeroPadded(fromHi, ac.Inputs.settings.sizeTxnData(nbRowsPerTxInTxnData)))
-	run.AssignColumn(td.fromLo.GetColID(), smartvectors.LeftZeroPadded(fromLo, ac.Inputs.settings.sizeTxnData(nbRowsPerTxInTxnData)))
+	for i := 0; i < txnDataFromColsNumber; i++ {
+		run.AssignColumn(td.from[i].GetColID(), smartvectors.LeftZeroPadded(from[i], ac.Inputs.settings.sizeTxnData(nbRowsPerTxInTxnData)))
+	}
+
 	run.AssignColumn(td.ct.GetColID(), smartvectors.LeftZeroPadded(ctWit, ac.Inputs.settings.sizeTxnData(nbRowsPerTxInTxnData)))
 }
 
 // it commits to the txn_data
 func commitTxnData(comp *wizard.CompiledIOP, limits *Settings, nbRowsPerTxInTxnData int) (td *txnData) {
 	size := limits.sizeTxnData(nbRowsPerTxInTxnData)
+
+	from := [txnDataFromColsNumber]ifaces.Column{}
+	for i := 0; i < txnDataFromColsNumber; i++ {
+		from[i] = comp.InsertCommit(0, ifaces.ColIDf("txn_data.From_%d", i), size)
+	}
+
 	td = &txnData{
-		fromHi: comp.InsertCommit(0, ifaces.ColIDf("txn_data.FromHi"), size),
-		fromLo: comp.InsertCommit(0, ifaces.ColIDf("txn_data.FromLo"), size),
-		ct:     comp.InsertCommit(0, ifaces.ColIDf("txn_data.CT"), size),
+		from: from,
+		ct:   comp.InsertCommit(0, ifaces.ColIDf("txn_data.CT"), size),
 	}
 	return td
 }
