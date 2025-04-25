@@ -78,8 +78,46 @@ func NewFlattenColumn(comp *wizard.CompiledIOP, size, nbLimbsCols int, module, c
 	}
 }
 
-// CsFlattenProjection adds projection constraints to verify flattened limbs and mask
-// align with original columns, using the auxiliary projection mask.
+// CsFlattenProjection adds a single batched projection constraint that enforces
+// the “flattened” limbs and mask columns exactly match the row‐wise concatenation
+// of the original limb columns and their mask.
+//
+// It works by:
+//   1. Shifting the committed flattened limbs and mask by 0…nbLimbsCols−1 rows.
+//   2. Duplicating the original limbs and mask into nbLimbsCols slots.
+//   3. Using auxProjectionMask (a sparse selector with a 1 at each block start)
+//      and a onesColumn to feed into the projection gadget.
+//   4. Requiring at each selected position that
+//        shiftedFlattenLimbs[i] == originalLimbs[i]
+//        shiftedFlattenMask[i]  == originalMask
+//   for all limb indices i and row positions.
+//
+// Suppose nbLimbsCols = 3, size = 4:
+// original limbs (rows × limbs):
+//   r\i   0    1    2
+//    0  [a0,  b0,  c0]
+//    1  [a1,  b1,  c1]
+//    2  [a2,  b2,  c2]
+//    3  [a3,  b3,  c3]
+//
+// flattened (size*3 = 12):
+//   [a0, b0, c0,  a1, b1, c1,  a2, b2, c2,  a3, b3, c3]
+//
+// shift0 (i=0):
+//   [a0, b0, c0,  a1, b1, c1,  a2, b2, c2,  a3, b3, c3]
+//
+// shift1 (i=1):
+//   [b0, c0, a1,  b1, c1, a2,  b2, c2, a3,  b3, c3,  0 ]
+//
+// shift2 (i=2):
+//   [c0, a1, b1,  c1, a2, b2,  c2, a3, b3,  c3,  0,   0 ]
+//
+// auxProjectionMask   = [1,0,0, 1,0,0, 1,0,0, 1,0,0]
+//
+// At each ‘1’ at idx = r*3, for shift i, enforce:
+//     shift_i[idx] == original[r][i]
+//
+// CsFlattenProjection batches all these equalities into one projection check.
 func (l *FlattenColumn) CsFlattenProjection(comp *wizard.CompiledIOP, limbs []ifaces.Column, mask ifaces.Column) {
 	masks := make([]ifaces.Column, l.nbLimbsCols)
 	shiftedFlattenLimbs := make([]ifaces.Column, l.nbLimbsCols)
