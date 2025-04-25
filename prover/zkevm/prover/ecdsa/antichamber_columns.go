@@ -36,11 +36,13 @@ func (ad *Addresses) cols() []ifaces.Column {
 }
 
 func (ts *txSignature) cols() []ifaces.Column {
-	return []ifaces.Column{
+	var columns = []ifaces.Column{
 		ts.isTxHash,
-		ts.txHashHi,
-		ts.txHashLo,
 	}
+
+	columns = append(columns, ts.txHash[:]...)
+
+	return columns
 }
 
 func (ugd *UnalignedGnarkData) cols() []ifaces.Column {
@@ -52,6 +54,7 @@ func (ugd *UnalignedGnarkData) cols() []ifaces.Column {
 }
 
 func (ac *antichamber) unalignedGnarkDataSource() *unalignedGnarkDataSource {
+	// TODO: change unalignedGnarkDataSource
 	return &unalignedGnarkDataSource{
 		IsActive:   ac.IsActive,
 		IsPushing:  ac.IsPushing,
@@ -61,7 +64,7 @@ func (ac *antichamber) unalignedGnarkDataSource() *unalignedGnarkDataSource {
 		SuccessBit: ac.EcRecover.SuccessBit,
 		IsData:     ac.EcRecover.EcRecoverIsData,
 		IsRes:      ac.EcRecover.EcRecoverIsRes,
-		TxHashHi:   ac.txSignature.txHashHi,
-		TxHashLo:   ac.txSignature.txHashLo,
+		TxHashHi:   ac.txSignature.txHash[0],
+		TxHashLo:   ac.txSignature.txHash[0],
 	}
 }
