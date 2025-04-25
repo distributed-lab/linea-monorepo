@@ -59,8 +59,7 @@ func NewEcMulZkEvm(comp *wizard.CompiledIOP, limits *Limits) *EcMul {
 func newEcMul(comp *wizard.CompiledIOP, limits *Limits, src *EcDataMulSource, plonkOptions []plonk.Option) *EcMul {
 	size := limits.sizeEcMulIntegration()
 
-	flattenSize := src.CsEcMul.Size() * common.NbFlattenColLimbs
-	flattenLimbs := common.NewFlattenColumn(comp, flattenSize, common.NbFlattenColLimbs, "ecdata")
+	flattenLimbs := common.NewFlattenColumn(comp, src.CsEcMul.Size(), common.NbFlattenColLimbs, "ecdata", "ECMUL")
 
 	toAlign := &plonk.CircuitAlignmentInput{
 		Name:               NAME_ECMUL + "_ALIGNMENT",
@@ -79,7 +78,7 @@ func newEcMul(comp *wizard.CompiledIOP, limits *Limits, src *EcDataMulSource, pl
 		size:             size,
 	}
 
-	flattenLimbs.CsEcDataProjection(comp, res.Limbs[:], res.CsEcMul)
+	flattenLimbs.CsFlattenProjection(comp, res.Limbs[:], res.CsEcMul)
 
 	return res
 }
