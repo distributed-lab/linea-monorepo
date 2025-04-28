@@ -19,7 +19,7 @@ const (
 
 const (
 	nbRowsPerEcAdd = 12
-	// nbLimbsCols of сolumns used to store the limbs.
+	// nbLimbsCols number of сolumns used to store the limbs.
 	nbLimbsCols = 8
 )
 

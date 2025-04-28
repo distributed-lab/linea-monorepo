@@ -7,7 +7,7 @@ import (
 	sym "github.com/consensys/linea-monorepo/prover/symbolic"
 )
 
-// input collects references to the columns of the arithmetization containing
+// Input collects references to the columns of the arithmetization containing
 // the Modexp statements. These columns are constrained via a projection query
 // to describe the same statement as what is being stated in the antichamber
 // module. They are also used as a data source to assign the columns of the

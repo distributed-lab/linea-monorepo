@@ -26,7 +26,7 @@ const (
 	// "small" variant (256 bits) or the "large" variant (4096 bits)
 	nbInstancePerCircuit256, nbInstancePerCircuit4096 = 10, 1
 
-	// nbLimbsCols of сolumns used to store the limbs.
+	// nbLimbsCols number of сolumns used to store the limbs.
 	nbLimbsCols = 8
 )
 
