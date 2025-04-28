@@ -27,9 +27,13 @@ func commitEcRecTxnData(comp *wizard.CompiledIOP, size1 int, size int, ac *antic
 	}
 
 	ecRec = &EcRecover{
-		Limb:           comp.InsertCommit(0, ifaces.ColIDf("ECRECOVER_LIMB"), size),
 		EcRecoverIsRes: comp.InsertCommit(0, ifaces.ColIDf("ECRECOVER_ISRES"), size),
 	}
+
+	for i := 0; i < NB_LIMB_COLUMNS; i++ {
+		ecRec.Limb[i] = comp.InsertCommit(0, ifaces.ColIDf("ECRECOVER_LIMB_%d", i), size)
+	}
+
 	ac.IsActive = comp.InsertCommit(0, "AntiChamber_IsActive", size)
 	return td, ecRec
 }
@@ -93,7 +97,10 @@ func AssignEcRecTxnData(
 	}
 
 	run.AssignColumn(ecRec.EcRecoverIsRes.GetColID(), smartvectors.RightZeroPadded(isEcRecRes, size))
-	run.AssignColumn(ecRec.Limb.GetColID(), smartvectors.RightZeroPadded(ecRecLimb, size))
+
+	for i := 0; i < NB_LIMB_COLUMNS; i++ {
+		run.AssignColumn(ecRec.Limb[i].GetColID(), smartvectors.RightZeroPadded(ecRecLimb, size))
+	}
 
 	// they are arithmetization columns, so LeftZeroPad
 	for i := 0; i < txnDataFromColsNumber; i++ {
