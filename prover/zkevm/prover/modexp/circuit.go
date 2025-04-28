@@ -36,10 +36,10 @@ type modexpCircuit struct {
 //
 // The operands are represented in limbs of 16 bytes.
 type modexpCircuitInstance struct {
-	Base     []frontend.Variable `gnark:",public"`
-	Exponent []frontend.Variable `gnark:",public"`
-	Modulus  []frontend.Variable `gnark:",public"`
-	Result   []frontend.Variable `gnark:",public"`
+	Base     [nbLimbsCols][]frontend.Variable `gnark:",public"`
+	Exponent [nbLimbsCols][]frontend.Variable `gnark:",public"`
+	Modulus  [nbLimbsCols][]frontend.Variable `gnark:",public"`
+	Result   [nbLimbsCols][]frontend.Variable `gnark:",public"`
 }
 
 // allocate256Bits allocates [modexpCircuit] for n instances assuming the 256-bit
@@ -58,10 +58,12 @@ func allocateCircuit(n int, numBits int) *modexpCircuit {
 	)
 
 	for i := range res.Instances {
-		res.Instances[i].Base = make([]frontend.Variable, numLimbs)
-		res.Instances[i].Exponent = make([]frontend.Variable, numLimbs)
-		res.Instances[i].Modulus = make([]frontend.Variable, numLimbs)
-		res.Instances[i].Result = make([]frontend.Variable, numLimbs)
+		for j := range nbLimbsCols {
+			res.Instances[i].Base[j] = make([]frontend.Variable, numLimbs)
+			res.Instances[i].Exponent[j] = make([]frontend.Variable, numLimbs)
+			res.Instances[i].Modulus[j] = make([]frontend.Variable, numLimbs)
+			res.Instances[i].Result[j] = make([]frontend.Variable, numLimbs)
+		}
 	}
 
 	return res
