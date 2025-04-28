@@ -38,8 +38,8 @@ func TestModexpWithCircuit(t *testing.T) {
 			)
 
 			cmp := wizard.Compile(func(build *wizard.Builder) {
-				var limbs [limbsScaleNumber]ifaces.Column
-				for i := 0; i < limbsScaleNumber; i++ {
+				var limbs [nbLimbsCols]ifaces.Column
+				for i := 0; i < nbLimbsCols; i++ {
 					limbs[i] = inpCt.GetCommit(build, fmt.Sprintf("LIMBS_%d", i))
 				}
 
@@ -59,7 +59,7 @@ func TestModexpWithCircuit(t *testing.T) {
 			proof := wizard.Prove(cmp, func(run *wizard.ProverRuntime) {
 
 				var names []string
-				for i := 0; i < limbsScaleNumber; i++ {
+				for i := 0; i < nbLimbsCols; i++ {
 					names = append(names, fmt.Sprintf("LIMBS_%d", i))
 				}
 

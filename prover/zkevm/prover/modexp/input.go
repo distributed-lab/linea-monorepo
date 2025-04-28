@@ -28,7 +28,7 @@ type Input struct {
 	// 4 above columns.
 	isModExp ifaces.Column
 	// Multiplexed column containing limbs for base, exponent, modulus, and result
-	Limbs [limbsScaleNumber]ifaces.Column
+	Limbs [nbLimbsCols]ifaces.Column
 }
 
 type Settings struct {
@@ -42,7 +42,7 @@ func newZkEVMInput(comp *wizard.CompiledIOP, settings Settings) Input {
 		IsModExpExponent: comp.Columns.GetHandle("blake2fmodexpdata.IS_MODEXP_EXPONENT"),
 		IsModExpModulus:  comp.Columns.GetHandle("blake2fmodexpdata.IS_MODEXP_MODULUS"),
 		IsModExpResult:   comp.Columns.GetHandle("blake2fmodexpdata.IS_MODEXP_RESULT"),
-		Limbs: [limbsScaleNumber]ifaces.Column{
+		Limbs: [nbLimbsCols]ifaces.Column{
 			comp.Columns.GetHandle("blake2fmodexpdata.LIMB_0"),
 			comp.Columns.GetHandle("blake2fmodexpdata.LIMB_1"),
 			comp.Columns.GetHandle("blake2fmodexpdata.LIMB_2"),

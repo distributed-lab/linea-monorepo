@@ -12,6 +12,7 @@ import (
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
 	sym "github.com/consensys/linea-monorepo/prover/symbolic"
 	"github.com/consensys/linea-monorepo/prover/utils"
+	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 )
 
 const (
@@ -25,8 +26,8 @@ const (
 	// "small" variant (256 bits) or the "large" variant (4096 bits)
 	nbInstancePerCircuit256, nbInstancePerCircuit4096 = 10, 1
 
-	// Limbs scale
-	limbsScaleNumber = 8
+	// nbLimbsCols of сolumns used to store the limbs.
+	nbLimbsCols = 8
 )
 
 // Module implements the wizard part responsible for checking the MODEXP
@@ -47,7 +48,7 @@ type Module struct {
 	// Limb contains the modexp arguments and is subjected to a projection
 	// constraint from the BLK_MDXP (using IsActive as filter). It is constrained
 	// to zero when IsActive = 0.
-	Limbs [limbsScaleNumber]ifaces.Column
+	Limbs [nbLimbsCols]ifaces.Column
 	// LsbIndicator is a precomputed column marking with a 1 the last two limbs
 	// of every operands. The column is precomputed because all Modexp provided
 	// by the arithmetization have exactly the same layout.
@@ -63,6 +64,12 @@ type Module struct {
 	// production, it will be always set to true. But for convenience we omit
 	// the circuit in some of the test as this is CPU intensive.
 	hasCircuit bool
+	// flattenLimbsSmall is a helper structure used to flatten the limbs columns
+	// of the small modexp instances into a single column.
+	flattenLimbsSmall *common.FlattenColumn
+	// flattenLimbsLarge is a helper structure used to flatten the limbs columns
+	// of the large modexp instances into a single column.
+	flattenLimbsLarge *common.FlattenColumn
 }
 
 // NewModuleZkEvm constructs an instance of the modexp module. It should be called
@@ -86,22 +93,16 @@ func newModule(comp *wizard.CompiledIOP, input Input) *Module {
 			MaxNb256BitsInstances:  settings.MaxNbInstance256,
 			MaxNb4096BitsInstances: settings.MaxNbInstance4096,
 			IsActive:               comp.InsertCommit(0, "MODEXP_IS_ACTIVE", size),
-			Limbs: [limbsScaleNumber]ifaces.Column{
-				comp.InsertCommit(0, "MODEXP_LIMBS_0", size),
-				comp.InsertCommit(0, "MODEXP_LIMBS_1", size),
-				comp.InsertCommit(0, "MODEXP_LIMBS_2", size),
-				comp.InsertCommit(0, "MODEXP_LIMBS_3", size),
-				comp.InsertCommit(0, "MODEXP_LIMBS_4", size),
-				comp.InsertCommit(0, "MODEXP_LIMBS_5", size),
-				comp.InsertCommit(0, "MODEXP_LIMBS_6", size),
-				comp.InsertCommit(0, "MODEXP_LIMBS_7", size),
-			},
-			IsSmall:      comp.InsertCommit(0, "MODEXP_IS_SMALL", size),
-			IsLarge:      comp.InsertCommit(0, "MODEXP_IS_LARGE", size),
-			LsbIndicator: comp.InsertPrecomputed("MODEXP_LSB_INDICATOR", lsbIndicatorValue(size)),
-			ToSmallCirc:  comp.InsertCommit(0, "MODEXP_TO_SMALL_CIRC", size),
+			IsSmall:                comp.InsertCommit(0, "MODEXP_IS_SMALL", size),
+			IsLarge:                comp.InsertCommit(0, "MODEXP_IS_LARGE", size),
+			LsbIndicator:           comp.InsertPrecomputed("MODEXP_LSB_INDICATOR", lsbIndicatorValue(size)),
+			ToSmallCirc:            comp.InsertCommit(0, "MODEXP_TO_SMALL_CIRC", size),
 		}
 	)
+
+	for i := 0; i < nbLimbsCols; i++ {
+		mod.Limbs[i] = comp.InsertCommit(0, ifaces.ColIDf("MODEXP_LIMBS_%d", i), size)
+	}
 
 	mod.Input.setIsModexp(comp)
 
@@ -109,7 +110,7 @@ func newModule(comp *wizard.CompiledIOP, input Input) *Module {
 	mod.csIsSmallAndLarge(comp)
 	mod.csToCirc(comp)
 
-	for i := range limbsScaleNumber {
+	for i := range nbLimbsCols {
 		projection.InsertProjection(
 			comp,
 			ifaces.QueryID(fmt.Sprintf("MODEXP_BLKMDXP_PROJECTION_%d", i)),
@@ -123,23 +124,29 @@ func newModule(comp *wizard.CompiledIOP, input Input) *Module {
 	return mod
 }
 
-func limbToCircuit_Mocked(limb [limbsScaleNumber]ifaces.Column) ifaces.Column {
-	panic("Mock")
-	return nil
-}
-
-// WithCircuits adds the Plonk-in-Wizard circuit verification to complete
+// WithCircuit adds the Plonk-in-Wizard circuit verification to complete
 // the anti-chamber.
 func (mod *Module) WithCircuit(comp *wizard.CompiledIOP, options ...plonk.Option) *Module {
 
 	mod.hasCircuit = true
 
+	mod.flattenLimbsSmall = common.NewFlattenColumn(comp, mod.ToSmallCirc.Size(),
+		nbLimbsCols, "ecdata", "MODEXP_SMALL")
+	mod.flattenLimbsLarge = common.NewFlattenColumn(comp, mod.IsLarge.Size(),
+		nbLimbsCols, "ecdata", "MODEXP_LARGE")
+
+	mod.flattenLimbsSmall.CsFlattenProjection(comp, mod.Limbs[:], mod.ToSmallCirc)
+	mod.flattenLimbsLarge.CsFlattenProjection(comp, mod.Limbs[:], mod.IsLarge)
+
+	fmt.Println(mod.flattenLimbsLarge.Limbs().Size())
+	fmt.Println(mod.flattenLimbsLarge.Mask().Size())
+
 	mod.GnarkCircuitConnector256Bits = plonk.DefineAlignment(
 		comp,
 		&plonk.CircuitAlignmentInput{
 			Name:               "MODEXP_256_BITS",
-			DataToCircuit:      limbToCircuit_Mocked(mod.Limbs),
-			DataToCircuitMask:  mod.ToSmallCirc,
+			DataToCircuit:      mod.flattenLimbsSmall.Limbs(),
+			DataToCircuitMask:  mod.flattenLimbsSmall.Mask(),
 			Circuit:            allocateCircuit(nbInstancePerCircuit256, 256),
 			NbCircuitInstances: utils.DivCeil(mod.MaxNb256BitsInstances, nbInstancePerCircuit256),
 			PlonkOptions:       options,
@@ -150,8 +157,8 @@ func (mod *Module) WithCircuit(comp *wizard.CompiledIOP, options ...plonk.Option
 		comp,
 		&plonk.CircuitAlignmentInput{
 			Name:               "MODEXP_4096_BITS",
-			DataToCircuit:      limbToCircuit_Mocked(mod.Limbs),
-			DataToCircuitMask:  mod.IsLarge,
+			DataToCircuit:      mod.flattenLimbsLarge.Limbs(),
+			DataToCircuitMask:  mod.flattenLimbsLarge.Mask(),
 			Circuit:            allocateCircuit(nbInstancePerCircuit4096, 4096),
 			NbCircuitInstances: utils.DivCeil(mod.MaxNb4096BitsInstances, nbInstancePerCircuit4096),
 			PlonkOptions:       options,
@@ -247,7 +254,7 @@ func (mod *Module) csIsSmallAndLarge(comp *wizard.CompiledIOP) {
 	// not be wrong to supply
 	//
 
-	for i := 0; i < limbsScaleNumber; i++ {
+	for i := 0; i < nbLimbsCols; i++ {
 		comp.InsertGlobal(
 			0,
 			ifaces.QueryIDf("MODEXP_IS_SMALL_IMPLIES_SMALL_OPERANDS_%d", i),
@@ -294,8 +301,8 @@ func mustBeBinary(comp *wizard.CompiledIOP, c ifaces.Column) {
 // mustCancelWhenBinCancel enforces to 'c' to be zero when the binary column
 // `bin` is zero. The constraint does not work if bin is not constrained to be
 // binary.
-func mustCancelWhenBinCancel(comp *wizard.CompiledIOP, bin ifaces.Column, c [limbsScaleNumber]ifaces.Column) {
-	for i := range limbsScaleNumber {
+func mustCancelWhenBinCancel(comp *wizard.CompiledIOP, bin ifaces.Column, c [nbLimbsCols]ifaces.Column) {
+	for i := range nbLimbsCols {
 		comp.InsertGlobal(
 			0,
 			ifaces.QueryIDf("%v_CANCEL_WHEN_NOT_%v", c[i].GetColID(), bin.GetColID()),

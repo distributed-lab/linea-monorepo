@@ -16,7 +16,7 @@ type antichamberAssignment struct {
 	isActive    *common.VectorBuilder
 	isSmall     *common.VectorBuilder
 	isLarge     *common.VectorBuilder
-	limbs       [limbsScaleNumber]*common.VectorBuilder
+	limbs       [nbLimbsCols]*common.VectorBuilder
 	toSmallCirc *common.VectorBuilder
 }
 
@@ -25,34 +25,25 @@ func (mod *Module) Assign(run *wizard.ProverRuntime) {
 
 	mod.Input.assignIsModexp(run)
 
-	var limbs [limbsScaleNumber][]field.Element
-
-	for i := range limbsScaleNumber {
-		limbs[i] = mod.Input.Limbs[i].GetColAssignment(run).IntoRegVecSaveAlloc()
-	}
-
 	var (
 		modexpCountSmall int = 0
 		modexpCountLarge int = 0
 		isModexp             = mod.Input.isModExp.GetColAssignment(run).IntoRegVecSaveAlloc()
 
 		builder = antichamberAssignment{
-			isActive: common.NewVectorBuilder(mod.IsActive),
-			isSmall:  common.NewVectorBuilder(mod.IsSmall),
-			isLarge:  common.NewVectorBuilder(mod.IsLarge),
-			limbs: [limbsScaleNumber]*common.VectorBuilder{
-				common.NewVectorBuilder(mod.Limbs[0]),
-				common.NewVectorBuilder(mod.Limbs[1]),
-				common.NewVectorBuilder(mod.Limbs[2]),
-				common.NewVectorBuilder(mod.Limbs[3]),
-				common.NewVectorBuilder(mod.Limbs[4]),
-				common.NewVectorBuilder(mod.Limbs[5]),
-				common.NewVectorBuilder(mod.Limbs[6]),
-				common.NewVectorBuilder(mod.Limbs[7]),
-			},
+			isActive:    common.NewVectorBuilder(mod.IsActive),
+			isSmall:     common.NewVectorBuilder(mod.IsSmall),
+			isLarge:     common.NewVectorBuilder(mod.IsLarge),
 			toSmallCirc: common.NewVectorBuilder(mod.ToSmallCirc),
 		}
 	)
+
+	// Retrieve the limbs assignment and initialize the limb builders
+	var limbs [nbLimbsCols][]field.Element
+	for i := range nbLimbsCols {
+		limbs[i] = mod.Input.Limbs[i].GetColAssignment(run).IntoRegVecSaveAlloc()
+		builder.limbs[i] = common.NewVectorBuilder(mod.Limbs[i])
+	}
 
 	limbSize := len(limbs[0])
 	for currPosition := 0; currPosition < limbSize; {
@@ -64,7 +55,7 @@ func (mod *Module) Assign(run *wizard.ProverRuntime) {
 
 		// This sanity-check is purely defensive and will indicate that we
 		// missed the start of a Modexp instance
-		for i := range limbsScaleNumber {
+		for i := range nbLimbsCols {
 			if len(limbs[i])-currPosition < modexpNumRowsPerInstance {
 				utils.Panic("A new modexp is starting but there is not enough rows (currPosition=%v len(ecdata.Limb)=%v)", currPosition, len(limbs))
 			}
@@ -76,7 +67,7 @@ func (mod *Module) Assign(run *wizard.ProverRuntime) {
 		// 2 16-bytes limbs (or 16 2-bytes limbs).
 		for k := 0; k < modexpNumRowsPerInstance; k++ {
 			isZeroLimbs := true
-			for i := range limbsScaleNumber {
+			for i := range nbLimbsCols {
 				isZeroLimbs = isZeroLimbs && limbs[i][currPosition+k].IsZero()
 			}
 
@@ -98,7 +89,7 @@ func (mod *Module) Assign(run *wizard.ProverRuntime) {
 			builder.isSmall.PushBoolean(!isLarge)
 			builder.isLarge.PushBoolean(isLarge)
 
-			for i := range limbsScaleNumber {
+			for i := range nbLimbsCols {
 				builder.limbs[i].PushField(limbs[i][currPosition+k])
 			}
 
@@ -126,13 +117,16 @@ func (mod *Module) Assign(run *wizard.ProverRuntime) {
 	builder.isSmall.PadAndAssign(run, field.Zero())
 	builder.isLarge.PadAndAssign(run, field.Zero())
 	builder.toSmallCirc.PadAndAssign(run, field.Zero())
-	for i := range limbsScaleNumber {
+	for i := range nbLimbsCols {
 		builder.limbs[i].PadAndAssign(run, field.Zero())
 	}
 
 	// It is possible to not declare the circuit (for testing purpose) in that
 	// case we skip the corresponding assignment part.
 	if mod.hasCircuit {
+		mod.flattenLimbsSmall.Assign(run)
+		mod.flattenLimbsLarge.Assign(run)
+
 		mod.GnarkCircuitConnector256Bits.Assign(run)
 		mod.GnarkCircuitConnector4096Bits.Assign(run)
 	}
