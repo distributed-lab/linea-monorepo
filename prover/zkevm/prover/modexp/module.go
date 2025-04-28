@@ -138,9 +138,6 @@ func (mod *Module) WithCircuit(comp *wizard.CompiledIOP, options ...plonk.Option
 	mod.flattenLimbsSmall.CsFlattenProjection(comp, mod.Limbs[:], mod.ToSmallCirc)
 	mod.flattenLimbsLarge.CsFlattenProjection(comp, mod.Limbs[:], mod.IsLarge)
 
-	fmt.Println(mod.flattenLimbsLarge.Limbs().Size())
-	fmt.Println(mod.flattenLimbsLarge.Mask().Size())
-
 	mod.GnarkCircuitConnector256Bits = plonk.DefineAlignment(
 		comp,
 		&plonk.CircuitAlignmentInput{

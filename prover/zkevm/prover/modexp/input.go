@@ -36,23 +36,19 @@ type Settings struct {
 }
 
 func newZkEVMInput(comp *wizard.CompiledIOP, settings Settings) Input {
-	return Input{
+	input := Input{
 		Settings:         settings,
 		IsModExpBase:     comp.Columns.GetHandle("blake2fmodexpdata.IS_MODEXP_BASE"),
 		IsModExpExponent: comp.Columns.GetHandle("blake2fmodexpdata.IS_MODEXP_EXPONENT"),
 		IsModExpModulus:  comp.Columns.GetHandle("blake2fmodexpdata.IS_MODEXP_MODULUS"),
 		IsModExpResult:   comp.Columns.GetHandle("blake2fmodexpdata.IS_MODEXP_RESULT"),
-		Limbs: [nbLimbsCols]ifaces.Column{
-			comp.Columns.GetHandle("blake2fmodexpdata.LIMB_0"),
-			comp.Columns.GetHandle("blake2fmodexpdata.LIMB_1"),
-			comp.Columns.GetHandle("blake2fmodexpdata.LIMB_2"),
-			comp.Columns.GetHandle("blake2fmodexpdata.LIMB_3"),
-			comp.Columns.GetHandle("blake2fmodexpdata.LIMB_4"),
-			comp.Columns.GetHandle("blake2fmodexpdata.LIMB_5"),
-			comp.Columns.GetHandle("blake2fmodexpdata.LIMB_6"),
-			comp.Columns.GetHandle("blake2fmodexpdata.LIMB_7"),
-		},
 	}
+
+	for i := range nbLimbsCols {
+		input.Limbs[i] = comp.Columns.GetHandle(ifaces.ColIDf("blake2fmodexpdata.LIMB_%d", i))
+	}
+
+	return input
 }
 
 // setIsModexp constructs, constraints and set the [isModexpColumn]
