@@ -1,6 +1,7 @@
 package ecdsa
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -29,12 +30,16 @@ func TestEcDataAssignData(t *testing.T) {
 			ecSrc = &ecDataSource{
 				CsEcrecover: ct.GetCommit(b, "EC_DATA_CS_ECRECOVER"),
 				ID:          ct.GetCommit(b, "EC_DATA_ID"),
-				Limb:        ct.GetCommit(b, "EC_DATA_LIMB"),
 				SuccessBit:  ct.GetCommit(b, "EC_DATA_SUCCESS_BIT"),
 				Index:       ct.GetCommit(b, "EC_DATA_INDEX"),
 				IsData:      ct.GetCommit(b, "EC_DATA_IS_DATA"),
 				IsRes:       ct.GetCommit(b, "EC_DATA_IS_RES"),
 			}
+
+			for i := 0; i < NB_LIMB_COLUMNS; i++ {
+				ecSrc.Limb[i] = ct.GetCommit(b, fmt.Sprintf("EC_DATA_LIMB_%d", i))
+			}
+
 			ecRec = newEcRecover(b.CompiledIOP, limits, ecSrc)
 		},
 		dummy.Compile,
@@ -42,7 +47,14 @@ func TestEcDataAssignData(t *testing.T) {
 
 	proof := wizard.Prove(cmp,
 		func(run *wizard.ProverRuntime) {
-			ct.Assign(run, "EC_DATA_CS_ECRECOVER", "EC_DATA_ID", "EC_DATA_LIMB", "EC_DATA_SUCCESS_BIT", "EC_DATA_INDEX", "EC_DATA_IS_DATA", "EC_DATA_IS_RES")
+			var columns = []string{"EC_DATA_CS_ECRECOVER", "EC_DATA_ID"}
+			for i := 0; i < NB_LIMB_COLUMNS; i++ {
+				columns = append(columns, fmt.Sprintf("EC_DATA_LIMB_%d", i))
+			}
+
+			columns = append(columns, "EC_DATA_SUCCESS_BIT", "EC_DATA_INDEX", "EC_DATA_IS_DATA", "EC_DATA_IS_RES")
+
+			ct.Assign(run, columns...)
 			ecRec.Assign(run, ecSrc)
 		})
 
