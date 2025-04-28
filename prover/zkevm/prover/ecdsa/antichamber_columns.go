@@ -16,14 +16,11 @@ func (ac *antichamber) cols(withActive bool) []ifaces.Column {
 }
 
 func (ec *EcRecover) cols() []ifaces.Column {
-	return []ifaces.Column{
-		ec.EcRecoverID,
-		ec.Limb,
-		ec.SuccessBit,
-		ec.EcRecoverIndex,
-		ec.EcRecoverIsData,
-		ec.EcRecoverIsRes,
-	}
+	var columns = []ifaces.Column{ec.EcRecoverID}
+	columns = append(columns, ec.Limb[:]...)
+	columns = append(columns, []ifaces.Column{ec.SuccessBit, ec.EcRecoverIndex, ec.EcRecoverIsData, ec.EcRecoverIsRes}...)
+
+	return columns
 }
 
 func (ad *Addresses) cols() []ifaces.Column {
@@ -60,7 +57,7 @@ func (ac *antichamber) unalignedGnarkDataSource() *unalignedGnarkDataSource {
 		IsPushing:  ac.IsPushing,
 		IsFetching: ac.IsFetching,
 		Source:     ac.Source,
-		Limb:       ac.EcRecover.Limb,
+		Limb:       ac.EcRecover.Limb[0],
 		SuccessBit: ac.EcRecover.SuccessBit,
 		IsData:     ac.EcRecover.EcRecoverIsData,
 		IsRes:      ac.EcRecover.EcRecoverIsRes,
