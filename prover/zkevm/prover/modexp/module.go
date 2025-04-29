@@ -107,16 +107,14 @@ func newModule(comp *wizard.CompiledIOP, input Input) *Module {
 	mod.csIsSmallAndLarge(comp)
 	mod.csToCirc(comp)
 
-	for i := range common.NbLimbU128 {
-		projection.InsertProjection(
-			comp,
-			ifaces.QueryID(fmt.Sprintf("MODEXP_BLKMDXP_PROJECTION_%d", i)),
-			mod.Input.Limbs[:],
-			mod.Limbs[:],
-			mod.Input.isModExp,
-			mod.IsActive,
-		)
-	}
+	projection.InsertProjection(
+		comp,
+		ifaces.QueryID(fmt.Sprintf("MODEXP_BLKMDXP_PROJECTION")),
+		mod.Input.Limbs[:],
+		mod.Limbs[:],
+		mod.Input.isModExp,
+		mod.IsActive,
+	)
 
 	return mod
 }
