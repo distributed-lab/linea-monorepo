@@ -108,13 +108,11 @@ func (mod *Module) WithCircuit(comp *wizard.CompiledIOP, options ...query.PlonkO
 	mod.hasCircuit = true
 	settings := mod.Input.Settings
 
-	mod.flattenLimbsSmall = common.NewFlattenColumn(comp, mod.ToSmallCirc.Size(),
-		common.NbLimbU128, "ecdata", "MODEXP_SMALL")
-	mod.flattenLimbsLarge = common.NewFlattenColumn(comp, mod.IsLarge.Size(),
-		common.NbLimbU128, "ecdata", "MODEXP_LARGE")
+	mod.flattenLimbsSmall = common.NewFlattenColumn(comp, common.NbLimbU128, mod.Limbs[:], mod.ToSmallCirc)
+	mod.flattenLimbsLarge = common.NewFlattenColumn(comp, common.NbLimbU128, mod.Limbs[:], mod.IsLarge)
 
-	mod.flattenLimbsSmall.CsFlattenProjection(comp, mod.Limbs[:], mod.ToSmallCirc)
-	mod.flattenLimbsLarge.CsFlattenProjection(comp, mod.Limbs[:], mod.IsLarge)
+	mod.flattenLimbsSmall.CsFlattenProjection(comp)
+	mod.flattenLimbsLarge.CsFlattenProjection(comp)
 
 	mod.GnarkCircuitConnector256Bits = plonk.DefineAlignment(
 		comp,
