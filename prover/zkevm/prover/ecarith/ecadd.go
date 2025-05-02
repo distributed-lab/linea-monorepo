@@ -57,7 +57,7 @@ func NewEcAddZkEvm(comp *wizard.CompiledIOP, limits *Limits) *EcAdd {
 func newEcAdd(comp *wizard.CompiledIOP, limits *Limits, src *EcDataAddSource, plonkOptions []plonk.Option) *EcAdd {
 	size := limits.sizeEcAddIntegration()
 
-	flattenLimbs := common.NewFlattenColumn(comp, src.CsEcAdd.Size(), common.NbLimbU128, "ecdata", "ECADD")
+	flattenLimbs := common.NewFlattenColumn(comp, common.NbLimbU128, src.Limbs[:], src.CsEcAdd)
 
 	toAlign := &plonk.CircuitAlignmentInput{
 		Name:               NAME_ECADD + "_ALIGNMENT",
@@ -76,7 +76,7 @@ func newEcAdd(comp *wizard.CompiledIOP, limits *Limits, src *EcDataAddSource, pl
 		size:             size,
 	}
 
-	flattenLimbs.CsFlattenProjection(comp, res.Limbs[:], res.CsEcAdd)
+	flattenLimbs.CsFlattenProjection(comp)
 
 	return res
 }
