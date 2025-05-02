@@ -43,11 +43,14 @@ func (ts *txSignature) cols() []ifaces.Column {
 }
 
 func (ugd *UnalignedGnarkData) cols() []ifaces.Column {
-	return []ifaces.Column{
+	cols := []ifaces.Column{
 		ugd.IsPublicKey,
 		ugd.GnarkIndex,
-		ugd.GnarkData,
 	}
+
+	cols = append(cols, ugd.GnarkData[:]...)
+
+	return cols
 }
 
 func (ac *antichamber) unalignedGnarkDataSource() *unalignedGnarkDataSource {
@@ -57,11 +60,10 @@ func (ac *antichamber) unalignedGnarkDataSource() *unalignedGnarkDataSource {
 		IsPushing:  ac.IsPushing,
 		IsFetching: ac.IsFetching,
 		Source:     ac.Source,
-		Limb:       ac.EcRecover.Limb[0],
+		Limb:       ac.EcRecover.Limb,
 		SuccessBit: ac.EcRecover.SuccessBit,
 		IsData:     ac.EcRecover.EcRecoverIsData,
 		IsRes:      ac.EcRecover.EcRecoverIsRes,
-		TxHashHi:   ac.txSignature.txHash[0],
-		TxHashLo:   ac.txSignature.txHash[0],
+		TxHash:     ac.txHash,
 	}
 }

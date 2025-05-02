@@ -130,6 +130,7 @@ func newAddress(comp *wizard.CompiledIOP, size int, ecRec *EcRecover, ac *antich
 	//	column.Shift(addr.isAddressHiEcRec, -1), addr.isAddressFromEcRec,
 	//)
 	//
+
 	// projection from txn-data to address columns
 	projection.InsertProjection(comp, ifaces.QueryIDf("Project_AddressUntrimmed_TxnData"),
 		td.from[:], addressUntrimmed[:],
@@ -181,9 +182,10 @@ func (addr *Addresses) GetProvider(comp *wizard.CompiledIOP, id ifaces.Column, u
 
 // It builds a GenericByteModule from Address columns and Public-Key/GnarkData columns.
 func (addr *Addresses) buildGenericModule(id ifaces.Column, uaGnark *UnalignedGnarkData) (pkModule generic.GenericByteModule) {
+	// TODO (Nazarevsky): this is not correct - we need to change
 	pkModule.Data = generic.GenDataModule{
 		HashNum: id,
-		Limb:    uaGnark.GnarkData,
+		Limb:    uaGnark.GnarkData[0],
 
 		// a column of all 16, since all the bytes of public key are used in hashing
 		NBytes: addr.col16,
@@ -191,7 +193,6 @@ func (addr *Addresses) buildGenericModule(id ifaces.Column, uaGnark *UnalignedGn
 		ToHash: uaGnark.IsPublicKey,
 	}
 
-	// TODO (Nazarevsky): this is not correct - we need to change the Hash module
 	pkModule.Info = generic.GenInfoModule{
 		HashHi:   addr.addressUntrimmed[0],
 		HashLo:   addr.address[0],

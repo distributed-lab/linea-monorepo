@@ -14,7 +14,7 @@ import (
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/hash/generic"
 )
 
-const txHashColsNumber = 16
+const NB_TX_HASH_COLS = 16
 
 // TxSignature is responsible for assigning the relevant columns for transaction-Hash,
 // and checking their consistency with the data coming from rlp_txn.
@@ -24,7 +24,7 @@ const txHashColsNumber = 16
 // columns for rlp-txn lives on the arithmetization side.
 type txSignature struct {
 	Inputs   *txSignatureInputs
-	txHash   [txHashColsNumber]ifaces.Column
+	txHash   [NB_TX_HASH_COLS]ifaces.Column
 	isTxHash ifaces.Column
 
 	// provider for keccak, Provider contains the inputs and outputs of keccak hash.
@@ -39,8 +39,8 @@ type txSignatureInputs struct {
 func newTxSignatures(comp *wizard.CompiledIOP, inp txSignatureInputs) *txSignature {
 	var createCol = createColFn(comp, NAME_TXSIGNATURE, inp.ac.size)
 
-	var txHashCols [txHashColsNumber]ifaces.Column
-	for i := 0; i < txHashColsNumber; i++ {
+	var txHashCols [NB_TX_HASH_COLS]ifaces.Column
+	for i := 0; i < NB_TX_HASH_COLS; i++ {
 		txHashCols[i] = createCol(fmt.Sprintf("TX_HASH_%d", i))
 	}
 
@@ -64,7 +64,7 @@ func newTxSignatures(comp *wizard.CompiledIOP, inp txSignatureInputs) *txSignatu
 
 	// txHashHi remains the same between two fetchings.
 	var subExpressions []any
-	for i := 0; i < txHashColsNumber; i++ {
+	for i := 0; i < NB_TX_HASH_COLS; i++ {
 		subExpressions = append(subExpressions, sym.Sub(res.txHash[i], column.Shift(res.txHash[i], -1)))
 	}
 
@@ -76,7 +76,7 @@ func newTxSignatures(comp *wizard.CompiledIOP, inp txSignatureInputs) *txSignatu
 
 	// txHash most significant limb is below 2**16
 	comp.InsertRange(0, "Range_txHash_MostSignificantLimb",
-		res.txHash[txHashColsNumber-1], 2<<16)
+		res.txHash[NB_TX_HASH_COLS-1], 2<<16)
 
 	res.provider = res.GetProvider(comp, inp.RlpTxn)
 
@@ -118,10 +118,10 @@ func (txn *txSignature) assignTxSignature(run *wizard.ProverRuntime, nbActualEcR
 		isTxHash    = vector.Repeat(field.Zero(), n)
 		size        = txn.Inputs.ac.size
 		permTrace   = keccak.GenerateTrace(txn.Inputs.RlpTxn.ScanStreams(run))
-		hashColumns [txHashColsNumber][]field.Element
+		hashColumns [NB_TX_HASH_COLS][]field.Element
 	)
 
-	for i := 0; i < txHashColsNumber; i++ {
+	for i := 0; i < NB_TX_HASH_COLS; i++ {
 		hashColumns[i] = vector.Repeat(field.Zero(), n)
 	}
 
@@ -142,7 +142,7 @@ func (txn *txSignature) assignTxSignature(run *wizard.ProverRuntime, nbActualEcR
 		isTxHash = append(isTxHash, repeatIsTxHash...)
 	}
 
-	for i := 0; i < txHashColsNumber; i++ {
+	for i := 0; i < NB_TX_HASH_COLS; i++ {
 		run.AssignColumn(txn.txHash[i].GetColID(), smartvectors.RightZeroPadded(hashColumns[i], size))
 	}
 

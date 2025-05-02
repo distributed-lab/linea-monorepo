@@ -113,10 +113,12 @@ func newAntichamber(comp *wizard.CompiledIOP, inputs *antichamberInput) *anticha
 	res.EcRecover = newEcRecover(comp, inputs.settings, inputs.ecSource)
 	res.UnalignedGnarkData = newUnalignedGnarkData(comp, size, res.unalignedGnarkDataSource())
 	res.Addresses = newAddress(comp, size, res.EcRecover, res, inputs.txSource)
+
+	// TODO DataToCircuit
 	toAlign := &plonk.CircuitAlignmentInput{
 		Name:               NAME_GNARK_DATA,
 		Round:              ROUND_NR,
-		DataToCircuit:      res.UnalignedGnarkData.GnarkData,
+		DataToCircuit:      res.UnalignedGnarkData.GnarkData[0],
 		DataToCircuitMask:  res.IsPushing,
 		Circuit:            newMultiEcRecoverCircuit(settings.NbInputInstance),
 		InputFiller:        inputFiller,

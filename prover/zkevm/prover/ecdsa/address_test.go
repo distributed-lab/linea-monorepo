@@ -1,6 +1,7 @@
 package ecdsa
 
 import (
+	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"testing"
 
 	"github.com/consensys/linea-monorepo/prover/protocol/compiler/dummy"
@@ -42,8 +43,10 @@ func TestAddress(t *testing.T) {
 			Inputs: &antichamberInput{settings: limits},
 			ID:     gbmGnark.HashNum,
 		}
+
+		// TODO: change this
 		uaGnark = &UnalignedGnarkData{
-			GnarkData:           gbmGnark.Limb,
+			GnarkData:           [8]ifaces.Column{gbmGnark.Limb},
 			GnarkPublicKeyIndex: gbmGnark.Index,
 			IsPublicKey:         gbmGnark.ToHash,
 		}

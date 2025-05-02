@@ -9,23 +9,34 @@ import (
 
 // Data represents a row in the CSV file
 type Data struct {
-	EcDataCsEcrecover string
-	EcDataId          string
-	EcDataLimb        string
-	EcDataSuccessBit  string
-	EcDataIndex       string
-	EcDataIsData      string
-	EcDataIsRes       string
+	IsActive                                      string
+	IsPushing                                     string
+	IsFetching                                    string
+	Source                                        string
+	Limb                                          string
+	SuccessBit                                    string
+	IsData                                        string
+	IsRes                                         string
+	TxHashHi                                      string
+	TxHashLo                                      string
+	EcdsaAntichamberUnalignedGnarkDataIsPublicKey string
+	EcdsaAntichamberUnalignedGnarkDataGnarkIndex  string
+	EcdsaAntichamberUnalignedGnarkDataGnarkData   string
 }
 
 type DataWrite struct {
-	EcDataCsEcrecover string
-	EcDataId          string
-	EcDataLimb        []string
-	EcDataSuccessBit  string
-	EcDataIndex       string
-	EcDataIsData      string
-	EcDataIsRes       string
+	IsActive                                      string
+	IsPushing                                     string
+	IsFetching                                    string
+	Source                                        string
+	Limb                                          []string
+	SuccessBit                                    string
+	IsData                                        string
+	IsRes                                         string
+	TxHash                                        []string
+	EcdsaAntichamberUnalignedGnarkDataIsPublicKey string
+	EcdsaAntichamberUnalignedGnarkDataGnarkIndex  string
+	EcdsaAntichamberUnalignedGnarkDataGnarkData   []string
 }
 
 func prependZeros(s string, desiredLength int) string {
@@ -36,12 +47,12 @@ func prependZeros(s string, desiredLength int) string {
 	return s
 }
 
-func splitIntoPairs(input string) []string {
+func splitIntoPairs(input string, desiredLength int) []string {
 	if len(input) == 0 {
 		return []string{}
 	}
 
-	input = prependZeros(input, 32)
+	input = prependZeros(input, desiredLength)
 
 	var result []string
 	for i := 0; i < len(input); i += 4 {
@@ -76,12 +87,22 @@ func writeCsv(name string, dataEntries []DataWrite) {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	var header = []string{"EC_DATA_CS_ECRECOVER", "EC_DATA_ID"}
+	var header = []string{"IS_ACTIVE", "IS_PUSHING", "IS_FETCHING", "SOURCE"}
 	for i := 0; i < 8; i++ {
-		header = append(header, fmt.Sprintf("EC_DATA_LIMB_%d", i))
+		header = append(header, fmt.Sprintf("LIMB_%d", i))
 	}
 
-	header = append(header, []string{"EC_DATA_SUCCESS_BIT", "EC_DATA_INDEX", "EC_DATA_IS_DATA", "EC_DATA_IS_RES"}...)
+	header = append(header, "SUCCESS_BIT", "IS_DATA", "IS_RES")
+
+	for i := 0; i < 16; i++ {
+		header = append(header, fmt.Sprintf("TX_HASH_%d", i))
+	}
+
+	header = append(header, "ECDSA_ANTICHAMBER_UNALIGNED_GNARK_DATA_IS_PUBLIC_KEY", "ECDSA_ANTICHAMBER_UNALIGNED_GNARK_DATA_GNARK_INDEX")
+
+	for i := 0; i < 8; i++ {
+		header = append(header, fmt.Sprintf("ECDSA_ANTICHAMBER_UNALIGNED_GNARK_DATA_GNARK_DATA_%d", i))
+	}
 	// Write the header row
 
 	if err := writer.Write(header); err != nil {
@@ -89,12 +110,18 @@ func writeCsv(name string, dataEntries []DataWrite) {
 		return
 	}
 
+	println(len(header))
+
 	// Write each data entry to the CSV file
+
 	for _, entry := range dataEntries {
 		var row []string
-		row = append(row, entry.EcDataCsEcrecover, entry.EcDataId)
-		row = append(row, entry.EcDataLimb[:]...)
-		row = append(row, entry.EcDataSuccessBit, entry.EcDataIndex, entry.EcDataIsData, entry.EcDataIsRes)
+		row = append(row, entry.IsActive, entry.IsPushing, entry.IsFetching, entry.Source)
+		row = append(row, entry.Limb[:]...)
+		row = append(row, entry.SuccessBit, entry.IsData, entry.IsRes)
+		row = append(row, entry.TxHash[:]...)
+		row = append(row, entry.EcdsaAntichamberUnalignedGnarkDataIsPublicKey, entry.EcdsaAntichamberUnalignedGnarkDataGnarkIndex)
+		row = append(row, entry.EcdsaAntichamberUnalignedGnarkDataGnarkData[:]...)
 
 		if err := writer.Write(row); err != nil {
 			fmt.Println("Error writing row:", err)
@@ -103,17 +130,9 @@ func writeCsv(name string, dataEntries []DataWrite) {
 	}
 }
 
-func getOne(allowOne bool) string {
-	if allowOne {
-		return "1"
-	}
-
-	return "0"
-}
-
 func main() {
 	// Open the CSV file
-	file, err := os.Open("ecdata_test.csv")
+	file, err := os.Open("unaligned_gnark_test.csv")
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		return
@@ -138,24 +157,47 @@ func main() {
 
 	var dataEntries []DataWrite
 	for i, row := range rows[1:] {
-		if len(row) != 7 {
+		if len(row) != 13 {
 			fmt.Printf("Skipping row %d due to incorrect number of columns\n", i+1)
 			continue
 		}
 
+		limbRow := row[4]
+		if len(limbRow) > 2 {
+			limbRow = row[4][2:]
+		}
+
+		txHashHiRow := row[8]
+		txHashLoRow := row[9]
+
+		if len(txHashHiRow) > 2 {
+			txHashHiRow = row[8][2:]
+			txHashLoRow = row[9][2:]
+		}
+
+		gnarkDataRow := row[12]
+
+		if len(gnarkDataRow) > 2 {
+			gnarkDataRow = row[12][2:]
+		}
+
 		dataEntry := DataWrite{
-			EcDataCsEcrecover: row[0],
-			EcDataId:          row[1],
-			EcDataLimb:        splitIntoPairs(row[2][2:]),
-			EcDataSuccessBit:  row[3],
-			EcDataIndex:       row[4],
-			EcDataIsData:      row[5],
-			EcDataIsRes:       row[6],
+			IsActive:   row[0],
+			IsPushing:  row[1],
+			IsFetching: row[2],
+			Source:     row[3],
+			Limb:       splitIntoPairs(limbRow, 32),
+			SuccessBit: row[5],
+			IsData:     row[6],
+			IsRes:      row[7],
+			TxHash:     splitIntoPairs(txHashHiRow+txHashLoRow, 64),
+			EcdsaAntichamberUnalignedGnarkDataIsPublicKey: row[10],
+			EcdsaAntichamberUnalignedGnarkDataGnarkIndex:  row[11],
+			EcdsaAntichamberUnalignedGnarkDataGnarkData:   splitIntoPairs(gnarkDataRow, 32),
 		}
 
 		dataEntries = append(dataEntries, dataEntry)
 	}
 
 	writeCsv("module.csv", dataEntries)
-
 }
