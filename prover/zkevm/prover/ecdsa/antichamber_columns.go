@@ -16,41 +16,28 @@ func (ac *antichamber) cols(withActive bool) []ifaces.Column {
 }
 
 func (ec *EcRecover) cols() []ifaces.Column {
-	var columns = []ifaces.Column{ec.EcRecoverID}
-	columns = append(columns, ec.Limb[:]...)
-	columns = append(columns, []ifaces.Column{ec.SuccessBit, ec.EcRecoverIndex, ec.EcRecoverIsData, ec.EcRecoverIsRes}...)
-
-	return columns
+	return append(
+		[]ifaces.Column{ec.EcRecoverID},
+		append(
+			ec.Limb[:],
+			ec.SuccessBit, ec.EcRecoverIndex, ec.EcRecoverIsData, ec.EcRecoverIsRes,
+		)...,
+	)
 }
 
 func (ad *Addresses) cols() []ifaces.Column {
-	var cols []ifaces.Column
-
-	cols = append(cols, ad.addressUntrimmed[:]...)
-	cols = append(cols, ad.address[:]...)
-
-	return cols
+	return append(ad.addressUntrimmed[:], ad.address[:]...)
 }
 
 func (ts *txSignature) cols() []ifaces.Column {
-	var columns = []ifaces.Column{
-		ts.isTxHash,
-	}
-
-	columns = append(columns, ts.txHash[:]...)
-
-	return columns
+	return append([]ifaces.Column{ts.isTxHash}, ts.txHash[:]...)
 }
 
 func (ugd *UnalignedGnarkData) cols() []ifaces.Column {
-	cols := []ifaces.Column{
-		ugd.IsPublicKey,
-		ugd.GnarkIndex,
-	}
-
-	cols = append(cols, ugd.GnarkData[:]...)
-
-	return cols
+	return append(
+		[]ifaces.Column{ugd.IsPublicKey, ugd.GnarkIndex},
+		ugd.GnarkData[:]...,
+	)
 }
 
 func (ac *antichamber) unalignedGnarkDataSource() *unalignedGnarkDataSource {
