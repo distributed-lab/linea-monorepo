@@ -17,14 +17,15 @@ var (
 )
 
 const (
-	NB_LIMB_COLUMNS     = 8
+	nbLimbColumns = 8
+
 	NB_ECRECOVER_INPUTS = 24
 	NB_TX_INPUTS        = 15
 )
 
 type EcRecover struct {
 	EcRecoverID     ifaces.Column
-	Limb            [NB_LIMB_COLUMNS]ifaces.Column
+	Limb            [nbLimbColumns]ifaces.Column
 	SuccessBit      ifaces.Column
 	EcRecoverIndex  ifaces.Column
 	EcRecoverIsData ifaces.Column
@@ -39,7 +40,7 @@ type EcRecover struct {
 type ecDataSource struct {
 	CsEcrecover ifaces.Column
 	ID          ifaces.Column
-	Limb        [NB_LIMB_COLUMNS]ifaces.Column
+	Limb        [nbLimbColumns]ifaces.Column
 	SuccessBit  ifaces.Column
 	Index       ifaces.Column
 	IsData      ifaces.Column
@@ -81,7 +82,7 @@ func newEcRecover(comp *wizard.CompiledIOP, limits *Settings, src *ecDataSource)
 		Settings: limits,
 	}
 
-	for i := 0; i < NB_LIMB_COLUMNS; i++ {
+	for i := 0; i < nbLimbColumns; i++ {
 		res.Limb[i] = createCol(fmt.Sprintf("LIMB_%d", i))
 	}
 
@@ -98,7 +99,7 @@ func (ec *EcRecover) Assign(run *wizard.ProverRuntime, src *ecDataSource) {
 func (ec *EcRecover) assignFromEcDataSource(run *wizard.ProverRuntime, src *ecDataSource) {
 
 	var (
-		sourceLimb [NB_LIMB_COLUMNS]ifaces.ColAssignment
+		sourceLimb [nbLimbColumns]ifaces.ColAssignment
 
 		nbInstances       = src.nbActualInstances(run)
 		currRow           = int(0)
@@ -113,7 +114,7 @@ func (ec *EcRecover) assignFromEcDataSource(run *wizard.ProverRuntime, src *ecDa
 		resEcRecoverIsData, resEcRecoverIsRes, resAuxProjectionMask []field.Element
 	)
 
-	for i := 0; i < NB_LIMB_COLUMNS; i++ {
+	for i := 0; i < nbLimbColumns; i++ {
 		sourceLimb[i] = run.GetColumn(src.Limb[i].GetColID())
 
 		if sourceID.Len() != sourceLimb[i].Len() ||
@@ -129,11 +130,11 @@ func (ec *EcRecover) assignFromEcDataSource(run *wizard.ProverRuntime, src *ecDa
 		panic("all source columns must have the same length")
 	}
 
-	var resElements [NB_LIMB_COLUMNS][]field.Element
+	var resElements [nbLimbColumns][]field.Element
 	for i := 0; i < nbInstances; i++ {
 
 		var (
-			rowEcRecoverID, rowSuccessBit, rowEcRecoverIndex            [nbRowsPerEcRec]field.Element
+			rowEcRecoverID, rowSuccessBit, rowEcRecoverIndex,
 			rowEcRecoverIsData, rowEcRecoverIsRes, rowAuxProjectionMask [nbRowsPerEcRec]field.Element
 		)
 
@@ -145,12 +146,12 @@ func (ec *EcRecover) assignFromEcDataSource(run *wizard.ProverRuntime, src *ecDa
 			}
 		}
 
-		var colElements [NB_LIMB_COLUMNS][nbRowsPerEcRec]field.Element
+		var colElements [nbLimbColumns][nbRowsPerEcRec]field.Element
 		for j := 0; j < nbRowsPerEcRecFetching; j++ {
 			sourceIdx := currRow + j
 			rowEcRecoverID[j] = sourceID.Get(sourceIdx)
 
-			for k := 0; k < NB_LIMB_COLUMNS; k++ {
+			for k := 0; k < nbLimbColumns; k++ {
 				colElements[k][j] = sourceLimb[k].Get(sourceIdx)
 			}
 
@@ -167,7 +168,7 @@ func (ec *EcRecover) assignFromEcDataSource(run *wizard.ProverRuntime, src *ecDa
 
 		resEcRecoverID = append(resEcRecoverID, rowEcRecoverID[:]...)
 
-		for j := 0; j < NB_LIMB_COLUMNS; j++ {
+		for j := 0; j < nbLimbColumns; j++ {
 			resElements[j] = append(resElements[j], colElements[j][:]...)
 		}
 
@@ -182,7 +183,7 @@ func (ec *EcRecover) assignFromEcDataSource(run *wizard.ProverRuntime, src *ecDa
 	size := ec.Settings.sizeAntichamber()
 	run.AssignColumn(ec.EcRecoverID.GetColID(), smartvectors.RightZeroPadded(resEcRecoverID, size))
 
-	for i := 0; i < NB_LIMB_COLUMNS; i++ {
+	for i := 0; i < nbLimbColumns; i++ {
 		run.AssignColumn(ec.Limb[i].GetColID(), smartvectors.RightZeroPadded(resElements[i], size))
 	}
 
@@ -194,11 +195,15 @@ func (ec *EcRecover) assignFromEcDataSource(run *wizard.ProverRuntime, src *ecDa
 }
 
 func (ec *EcRecover) csEcDataProjection(comp *wizard.CompiledIOP, src *ecDataSource) {
-	var columnsA = ec.Limb[:]
-	columnsA = append(columnsA, []ifaces.Column{ec.EcRecoverID, ec.SuccessBit, ec.EcRecoverIndex, ec.EcRecoverIsData, ec.EcRecoverIsRes}...)
+	columnsA := append(
+		ec.Limb[:],
+		ec.EcRecoverID, ec.SuccessBit, ec.EcRecoverIndex, ec.EcRecoverIsData, ec.EcRecoverIsRes,
+	)
 
-	var columnsB = src.Limb[:]
-	columnsB = append(columnsB, []ifaces.Column{src.ID, src.SuccessBit, src.Index, src.IsData, src.IsRes}...)
+	columnsB := append(
+		src.Limb[:],
+		src.ID, src.SuccessBit, src.Index, src.IsData, src.IsRes,
+	)
 
 	projection.InsertProjection(comp, ifaces.QueryIDf("%v_PROJECT_ECDATA", NAME_ECRECOVER),
 		columnsA, columnsB,
