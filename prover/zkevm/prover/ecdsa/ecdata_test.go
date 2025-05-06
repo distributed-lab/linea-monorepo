@@ -36,7 +36,7 @@ func TestEcDataAssignData(t *testing.T) {
 				IsRes:       ct.GetCommit(b, "EC_DATA_IS_RES"),
 			}
 
-			for i := 0; i < NB_LIMB_COLUMNS; i++ {
+			for i := 0; i < nbLimbColumns; i++ {
 				ecSrc.Limb[i] = ct.GetCommit(b, fmt.Sprintf("EC_DATA_LIMB_%d", i))
 			}
 
@@ -48,7 +48,8 @@ func TestEcDataAssignData(t *testing.T) {
 	proof := wizard.Prove(cmp,
 		func(run *wizard.ProverRuntime) {
 			var columns = []string{"EC_DATA_CS_ECRECOVER", "EC_DATA_ID"}
-			for i := 0; i < NB_LIMB_COLUMNS; i++ {
+
+			for i := 0; i < nbLimbColumns; i++ {
 				columns = append(columns, fmt.Sprintf("EC_DATA_LIMB_%d", i))
 			}
 
