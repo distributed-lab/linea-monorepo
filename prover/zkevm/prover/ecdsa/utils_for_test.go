@@ -10,27 +10,24 @@ import (
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
 	"github.com/consensys/linea-monorepo/prover/utils"
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/hash/generic"
-	"slices"
-
 	"golang.org/x/crypto/sha3"
+	"slices"
 )
 
 func commitEcRecTxnData(comp *wizard.CompiledIOP, size1 int, size int, ac *antichamber) (td *txnData, ecRec *EcRecover) {
-	var from [txnDataFromColsNumber]ifaces.Column
-	for i := 0; i < txnDataFromColsNumber; i++ {
-		from[i] = comp.InsertCommit(0, ifaces.ColID(fmt.Sprintf("txndata.From_%d", i)), size1)
+	td = &txnData{
+		ct: comp.InsertCommit(0, ifaces.ColIDf("txn_data.CT"), size1),
 	}
 
-	td = &txnData{
-		from: from,
-		ct:   comp.InsertCommit(0, ifaces.ColIDf("txn_data.CT"), size1),
+	for i := 0; i < txnDataFromColsNumber; i++ {
+		td.from[i] = comp.InsertCommit(0, ifaces.ColID(fmt.Sprintf("txndata.From_%d", i)), size1)
 	}
 
 	ecRec = &EcRecover{
 		EcRecoverIsRes: comp.InsertCommit(0, ifaces.ColIDf("ECRECOVER_ISRES"), size),
 	}
 
-	for i := 0; i < NB_LIMB_COLUMNS; i++ {
+	for i := 0; i < nbLimbColumns; i++ {
 		ecRec.Limb[i] = comp.InsertCommit(0, ifaces.ColIDf("ECRECOVER_LIMB_%d", i), size)
 	}
 
@@ -52,7 +49,10 @@ func AssignEcRecTxnData(
 
 	// now assign ecRecover.Limb and txn_data.From from the permutation trace.
 	isEcRecRes := make([]field.Element, nbEcRec*nbRowsPerEcRec)
-	ecRecLimb := make([]field.Element, nbEcRec*nbRowsPerEcRec)
+	ecRecLimb := make([][]field.Element, nbLimbColumns)
+	for i := range ecRecLimb {
+		ecRecLimb[i] = make([]field.Element, nbEcRec*nbRowsPerEcRec)
+	}
 
 	nbRowsPerTxInTxnData := 9
 	var ctWit []field.Element
@@ -75,18 +75,27 @@ func AssignEcRecTxnData(
 	}
 
 	for i, hashRes := range permTrace.HashOutPut {
-		slices.Reverse(hashRes[:])
-
-		fromLimbs := divideBytes(hashRes[:])
-
 		if i < nbEcRec {
+			slices.Reverse(hashRes[:])
+
 			isEcRecRes[i*nbRowsPerEcRec+offSetEcRec] = field.One()
 			isEcRecRes[i*nbRowsPerEcRec+offSetEcRec+1] = field.One()
 
-			ecRecLimb[i*nbRowsPerEcRec+offSetEcRec].SetBytes(hashRes[halfDigest-trimmingSize : halfDigest])
-			ecRecLimb[i*nbRowsPerEcRec+offSetEcRec+1].SetBytes(hashRes[halfDigest:])
+			ecRecHiLimbs := divideBytes(hashRes[halfDigest-trimmingSize : halfDigest])
+			ecRecLoLimbs := divideBytes(hashRes[halfDigest:])
+
+			for j := 0; j < nbLimbColumns; j++ {
+				if j >= nbLimbColumns-2 {
+					ecRecLimb[j][i*nbRowsPerEcRec+offSetEcRec].SetBytes(ecRecHiLimbs[j-(nbLimbColumns-2)])
+				}
+
+				ecRecLimb[j][i*nbRowsPerEcRec+offSetEcRec+1].SetBytes(ecRecLoLimbs[j])
+			}
+
 			continue
 		} else {
+			slices.Reverse(hashRes[:])
+			fromLimbs := divideBytes(hashRes[:])
 			j := i - nbEcRec
 
 			for k, limb := range fromLimbs {
@@ -98,8 +107,8 @@ func AssignEcRecTxnData(
 
 	run.AssignColumn(ecRec.EcRecoverIsRes.GetColID(), smartvectors.RightZeroPadded(isEcRecRes, size))
 
-	for i := 0; i < NB_LIMB_COLUMNS; i++ {
-		run.AssignColumn(ecRec.Limb[i].GetColID(), smartvectors.RightZeroPadded(ecRecLimb, size))
+	for i := 0; i < nbLimbColumns; i++ {
+		run.AssignColumn(ecRec.Limb[i].GetColID(), smartvectors.RightZeroPadded(ecRecLimb[i], size))
 	}
 
 	// they are arithmetization columns, so LeftZeroPad
@@ -185,14 +194,13 @@ func (td *txnData) assignTxnDataFromPK(
 func commitTxnData(comp *wizard.CompiledIOP, limits *Settings, nbRowsPerTxInTxnData int) (td *txnData) {
 	size := limits.sizeTxnData(nbRowsPerTxInTxnData)
 
-	from := [txnDataFromColsNumber]ifaces.Column{}
-	for i := 0; i < txnDataFromColsNumber; i++ {
-		from[i] = comp.InsertCommit(0, ifaces.ColIDf("txn_data.From_%d", i), size)
+	td = &txnData{
+		ct: comp.InsertCommit(0, ifaces.ColIDf("txn_data.CT"), size),
 	}
 
-	td = &txnData{
-		from: from,
-		ct:   comp.InsertCommit(0, ifaces.ColIDf("txn_data.CT"), size),
+	for i := 0; i < txnDataFromColsNumber; i++ {
+		td.from[i] = comp.InsertCommit(0, ifaces.ColIDf("txn_data.From_%d", i), size)
 	}
+
 	return td
 }
