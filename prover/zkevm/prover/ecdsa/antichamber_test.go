@@ -64,7 +64,7 @@ func TestAntichamber(t *testing.T) {
 				IsRes:       ct.GetCommit(b, "EC_DATA_IS_RES"),
 			}
 
-			for i := 0; i < NB_LIMB_COLUMNS; i++ {
+			for i := 0; i < nbLimbColumns; i++ {
 				ecSrc.Limb[i] = ct.GetCommit(b, fmt.Sprintf("EC_DATA_LIMB_%d", i))
 			}
 
@@ -91,9 +91,14 @@ func TestAntichamber(t *testing.T) {
 			// assign txn_data module from pk
 			txSrc.assignTxnDataFromPK(run, ac, trace.HashOutPut, nbRowsPerTxInTxnData)
 
-			ct.Assign(run,
-				"EC_DATA_CS_ECRECOVER", "EC_DATA_ID", "EC_DATA_LIMB", "EC_DATA_SUCCESS_BIT", "EC_DATA_INDEX", "EC_DATA_IS_DATA", "EC_DATA_IS_RES",
-			)
+			var names = []string{"EC_DATA_CS_ECRECOVER", "EC_DATA_ID"}
+			for i := 0; i < nbLimbColumns; i++ {
+				names = append(names, fmt.Sprintf("EC_DATA_LIMB_%d", i))
+			}
+
+			names = append(names, "EC_DATA_SUCCESS_BIT", "EC_DATA_INDEX", "EC_DATA_IS_DATA", "EC_DATA_IS_RES")
+
+			ct.Assign(run, names...)
 			ac.assign(run, dummyTxSignatureGetter, limits.MaxNbTx)
 		})
 
