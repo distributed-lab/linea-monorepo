@@ -18,14 +18,13 @@ import (
 
 const (
 	nbRowsPerPublicKey = 4
-	nbColsPerGnarkData = 16
 )
 
 type UnalignedGnarkData struct {
 	IsPublicKey         ifaces.Column
 	GnarkIndex          ifaces.Column
 	GnarkPublicKeyIndex ifaces.Column
-	GnarkData           [NB_LIMB_COLUMNS]ifaces.Column
+	GnarkData           [nbLimbColumns]ifaces.Column
 
 	// auxiliary columns
 	isIndex0     ifaces.Column
@@ -50,9 +49,9 @@ type unalignedGnarkDataSource struct {
 	IsFetching ifaces.Column
 	IsData     ifaces.Column
 	IsRes      ifaces.Column
-	Limb       [NB_LIMB_COLUMNS]ifaces.Column
+	Limb       [nbLimbColumns]ifaces.Column
 	SuccessBit ifaces.Column
-	TxHash     [NB_TX_HASH_COLS]ifaces.Column
+	TxHash     [nbTxHashCols]ifaces.Column
 }
 
 // TxSignatureGetter is a function that is expected a signature for a transaction
@@ -73,7 +72,7 @@ func newUnalignedGnarkData(comp *wizard.CompiledIOP, size int, src *unalignedGna
 		size: size,
 	}
 
-	for i := 0; i < NB_LIMB_COLUMNS; i++ {
+	for i := 0; i < nbLimbColumns; i++ {
 		res.GnarkData[i] = createCol(fmt.Sprintf("GNARK_DATA_%d", i))
 	}
 
@@ -111,11 +110,11 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 		sourceIsActive   = run.GetColumn(src.IsActive.GetColID())
 		sourceSuccessBit = run.GetColumn(src.SuccessBit.GetColID())
 
-		sourceLimb   [NB_LIMB_COLUMNS]ifaces.ColAssignment
-		sourceTxHash [NB_TX_HASH_COLS]ifaces.ColAssignment
+		sourceLimb   [nbLimbColumns]ifaces.ColAssignment
+		sourceTxHash [nbTxHashCols]ifaces.ColAssignment
 	)
 
-	for i := 0; i < NB_LIMB_COLUMNS; i++ {
+	for i := 0; i < nbLimbColumns; i++ {
 		sourceLimb[i] = run.GetColumn(src.Limb[i].GetColID())
 
 		if sourceLimb[i].Len() != d.size {
@@ -123,7 +122,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 		}
 	}
 
-	for i := 0; i < NB_TX_HASH_COLS; i++ {
+	for i := 0; i < nbTxHashCols; i++ {
 		sourceTxHash[i] = run.GetColumn(src.TxHash[i].GetColID())
 
 		if sourceTxHash[i].Len() != d.size {
@@ -136,15 +135,15 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 	}
 
 	var resIsPublicKey, resGnarkIndex, resGnarkPkIndex []field.Element
-	var resGnarkData [NB_LIMB_COLUMNS][]field.Element
-	txCount := 0
+	var resGnarkData [nbLimbColumns][]field.Element
+	var txCount = 0
 
 	for i := 0; i < d.size; {
 
 		var (
 			isActive         = sourceIsActive.Get(i)
 			source           = sourceSource.Get(i)
-			rows             = make([]field.Element, nbRowsPerGnarkPushing*NB_LIMB_COLUMNS)
+			rows             = make([]field.Element, nbRowsPerGnarkPushing*nbLimbColumns)
 			buf              [32]byte
 			prehashedMsg     [32]byte
 			r, s, v          = new(big.Int), new(big.Int), new(big.Int)
@@ -153,18 +152,18 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 		)
 
 		if isActive.IsOne() && source.Cmp(&SOURCE_ECRECOVER) == 0 {
+			// we copy the data from ecrecover
 			prependZeroCount = nbRowsPerEcRecFetching
 
-			// we copy the data from ecrecover
-			var successBitLimbs [NB_LIMB_COLUMNS]field.Element
-			successBitLimbs[NB_LIMB_COLUMNS-1] = sourceSuccessBit.Get(i)
+			var successBitLimbs [nbLimbColumns]field.Element
+			successBitLimbs[nbLimbColumns-1] = sourceSuccessBit.Get(i)
 
 			for j, limb := range successBitLimbs {
 				rows[96+j] = limb
 			}
 
-			var oneLimbs [NB_LIMB_COLUMNS]field.Element
-			oneLimbs[NB_LIMB_COLUMNS-1] = field.NewElement(1)
+			var oneLimbs [nbLimbColumns]field.Element
+			oneLimbs[nbLimbColumns-1] = field.NewElement(1)
 
 			for j, limb := range oneLimbs {
 				rows[96+len(successBitLimbs)+j] = limb
@@ -172,8 +171,8 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 
 			// copy h0, h1, r0, r1, s0, s1, v0, v1
 			for j := 0; j < 8; j++ {
-				for k := 0; k < NB_LIMB_COLUMNS; k++ {
-					rows[32+j*NB_LIMB_COLUMNS+k] = sourceLimb[k].Get(i + j)
+				for k := 0; k < nbLimbColumns; k++ {
+					rows[32+j*nbLimbColumns+k] = sourceLimb[k].Get(i + j)
 				}
 			}
 
@@ -211,22 +210,22 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 
 			i += NB_ECRECOVER_INPUTS
 		} else if isActive.IsOne() && source.Cmp(&SOURCE_TX) == 0 {
-			prependZeroCount = nbRowsPerTxSignFetching
 			// we copy the data from the transcation
+			prependZeroCount = nbRowsPerTxSignFetching
 
-			var successBitLimbs [NB_LIMB_COLUMNS]field.Element
-			successBitLimbs[NB_LIMB_COLUMNS-1] = field.NewElement(1) // always succeeds, we only include valid transactions
+			var successBitLimbs [nbLimbColumns]field.Element
+			successBitLimbs[nbLimbColumns-1] = field.NewElement(1) // always succeeds, we only include valid transactions
 
 			for j, limb := range successBitLimbs {
 				rows[96+j] = limb
 			}
 
-			var zeroLimbs [NB_LIMB_COLUMNS]field.Element
+			var zeroLimbs [nbLimbColumns]field.Element
 			for j, limb := range zeroLimbs {
 				rows[96+len(successBitLimbs)+j] = limb
 			}
 
-			for j := 0; j < NB_TX_HASH_COLS; j++ {
+			for j := 0; j < nbTxHashCols; j++ {
 				rows[32+j] = sourceTxHash[j].Get(i)
 			}
 
@@ -309,12 +308,13 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			resGnarkIndex = append(resGnarkIndex, field.NewElement(uint64(i)))
 		}
 
-		for j := 0; j < NB_LIMB_COLUMNS; j++ {
+		for j := 0; j < nbLimbColumns; j++ {
 			resGnarkData[j] = append(resGnarkData[j], make([]field.Element, prependZeroCount)...)
 		}
 
-		for j := 0; j < nbRowsPerGnarkPushing*NB_LIMB_COLUMNS; j++ {
-			resGnarkData[j%NB_LIMB_COLUMNS] = append(resGnarkData[j%NB_LIMB_COLUMNS], rows[j])
+		// Assign limb elements column by column
+		for j := 0; j < nbRowsPerGnarkPushing*nbLimbColumns; j++ {
+			resGnarkData[j%nbLimbColumns] = append(resGnarkData[j%nbLimbColumns], rows[j])
 		}
 	}
 	// pad the vectors to the full size. It is expected in the hashing module
@@ -328,7 +328,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 	run.AssignColumn(d.GnarkIndex.GetColID(), smartvectors.RightZeroPadded(resGnarkIndex, d.size))
 	run.AssignColumn(d.GnarkPublicKeyIndex.GetColID(), smartvectors.RightZeroPadded(resGnarkPkIndex, d.size))
 
-	for j := 0; j < NB_LIMB_COLUMNS; j++ {
+	for j := 0; j < nbLimbColumns; j++ {
 		resGnarkData[j] = append(resGnarkData[j], make([]field.Element, d.size-len(resGnarkData[j]))...)
 		run.AssignColumn(d.GnarkData[j].GetColID(), smartvectors.RightZeroPadded(resGnarkData[j], d.size))
 	}
@@ -448,28 +448,34 @@ func (d *UnalignedGnarkData) csProjectionEcRecover(comp *wizard.CompiledIOP, src
 }
 
 func (d *UnalignedGnarkData) csTxHash(comp *wizard.CompiledIOP, src *unalignedGnarkDataSource) {
-	// TODO: since we have 16 txhash columns instead of 1, we need to put a global query on an every column. Maybe, we
-	// can find a better solution?
+	// TODO: for now, we create just two global constraints instead of applying every constraint on a limb column.
+	// I'm not sure about this.
 
 	// that we have projected correctly txHashHi and txHashLo
-	for i := 0; i < NB_LIMB_COLUMNS; i++ {
-		comp.InsertGlobal(
-			ROUND_NR,
-			ifaces.QueryIDf("%v_%v_%d", NAME_UNALIGNED_GNARKDATA, "TXHASH_HI", i),
-			sym.Mul(d.isIndex4, src.Source, sym.Sub(d.GnarkData[i], src.TxHash[i])),
-		)
+	var hiMulExpression = sym.NewConstant(1)
+	var loMulExpression = sym.NewConstant(1)
+	for i := 0; i < nbLimbColumns; i++ {
+		hiMulExpression = sym.Mul(hiMulExpression, sym.Sub(d.GnarkData[i], src.TxHash[i]))
+		loMulExpression = sym.Mul(loMulExpression, sym.Sub(d.GnarkData[i], src.TxHash[i+nbLimbColumns]))
 	}
 
-	for i := 0; i < NB_LIMB_COLUMNS; i++ {
-		comp.InsertGlobal(
-			ROUND_NR,
-			ifaces.QueryIDf("%v_%v_%d", NAME_UNALIGNED_GNARKDATA, "TXHASH_LO", i+NB_LIMB_COLUMNS),
-			sym.Mul(d.isIndex5, src.Source, sym.Sub(d.GnarkData[i], src.TxHash[i+NB_LIMB_COLUMNS])),
-		)
-	}
+	comp.InsertGlobal(
+		ROUND_NR,
+		ifaces.QueryIDf("%v_%v", NAME_UNALIGNED_GNARKDATA, "TXHASH_HI"),
+		sym.Mul(d.isIndex4, src.Source, hiMulExpression),
+	)
+
+	comp.InsertGlobal(
+		ROUND_NR,
+		ifaces.QueryIDf("%v_%v", NAME_UNALIGNED_GNARKDATA, "TXHASH_LO"),
+		sym.Mul(d.isIndex5, src.Source, loMulExpression),
+	)
 }
 
 func (d *UnalignedGnarkData) csTxEcRecoverBit(comp *wizard.CompiledIOP, src *unalignedGnarkDataSource) {
+	// TODO: for now, we create just two global constraints instead of applying every constraint on a limb column.
+	// I'm not sure about this.
+
 	// that we set ecrecoverbit correctly for txhash (==0). We do not care for
 	// ecrecover as we would be additionally restricting the inputs otherwise
 	// and would not be able to solve for valid inputs if the input is valid.
@@ -477,13 +483,14 @@ func (d *UnalignedGnarkData) csTxEcRecoverBit(comp *wizard.CompiledIOP, src *una
 	// additionally, we do not have to binary constrain as it is already
 	// enforced inside gnark circuit
 
-	// TODO: are there any ways to optimize it?
-
-	for i := 0; i < NB_LIMB_COLUMNS; i++ {
-		comp.InsertGlobal(
-			ROUND_NR,
-			ifaces.QueryIDf("%v_%v_%d", NAME_UNALIGNED_GNARKDATA, "ECRECOVERBIT", i),
-			sym.Mul(d.isIndex13, src.Source, d.GnarkData[i]),
-		)
+	var mulExpression = sym.NewConstant(1)
+	for i := 0; i < nbLimbColumns; i++ {
+		mulExpression = sym.Mul(mulExpression, d.GnarkData[i])
 	}
+
+	comp.InsertGlobal(
+		ROUND_NR,
+		ifaces.QueryIDf("%v_%v", NAME_UNALIGNED_GNARKDATA, "ECRECOVERBIT"),
+		sym.Mul(d.isIndex13, src.Source, mulExpression),
+	)
 }
