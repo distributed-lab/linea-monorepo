@@ -187,8 +187,8 @@ func ImportAndPad(comp *wizard.CompiledIOP, inp ImportAndPadInputs, numRows int)
 	projection.InsertProjection(
 		comp,
 		ifaces.QueryIDf("%v_IMPORT_PAD_PROJECTION", inp.Name),
-		[]ifaces.Column{inp.Src.Data.HashNum, inp.Src.Data.Limb, inp.Src.Data.NBytes, inp.Src.Data.Index},
-		[]ifaces.Column{res.HashNum, res.Limbs, res.NBytes, res.Index},
+		append(inp.Src.Data.Limbs, inp.Src.Data.HashNum, inp.Src.Data.NBytes, inp.Src.Data.Index),
+		[]ifaces.Column{res.Limbs, res.HashNum, res.NBytes, res.Index},
 		inp.Src.Data.ToHash,
 		res.IsInserted,
 	)
@@ -203,7 +203,7 @@ func (imp *importation) Run(run *wizard.ProverRuntime) {
 		sha2Count = 0
 		srcData   = imp.Inputs.Src.Data
 		hashNum   = srcData.HashNum.GetColAssignment(run).IntoRegVecSaveAlloc()
-		limbs     = srcData.Limb.GetColAssignment(run).IntoRegVecSaveAlloc()
+		limbs     = srcData.Limbs[0].GetColAssignment(run).IntoRegVecSaveAlloc()
 		nBytes    = srcData.NBytes.GetColAssignment(run).IntoRegVecSaveAlloc()
 		index     = srcData.Index.GetColAssignment(run).IntoRegVecSaveAlloc()
 		toHash    = srcData.ToHash.GetColAssignment(run).IntoRegVecSaveAlloc()

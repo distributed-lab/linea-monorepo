@@ -71,8 +71,8 @@ func NewGenericDataAccumulator(comp *wizard.CompiledIOP, inp GenericAccumulatorI
 	for i, gbm := range d.Inputs.ProvidersData {
 
 		projection.InsertProjection(comp, ifaces.QueryIDf("Stitch_Modules_%v", i),
-			[]ifaces.Column{gbm.HashNum, gbm.Limb, gbm.NBytes, gbm.Index},
-			[]ifaces.Column{d.Provider.HashNum, d.Provider.Limb, d.Provider.NBytes, d.Provider.Index},
+			append(gbm.Limbs, gbm.HashNum, gbm.NBytes, gbm.Index),
+			append(d.Provider.Limbs, d.Provider.HashNum, d.Provider.NBytes, d.Provider.Index),
 			gbm.ToHash,
 			d.sFilters[i],
 		)
@@ -92,7 +92,7 @@ func (d *GenericDataAccumulator) declareColumns(comp *wizard.CompiledIOP, nbProv
 
 	d.IsActive = createCol("IsActive")
 	d.Provider.HashNum = createCol("sHashNum")
-	d.Provider.Limb = createCol("sLimb")
+	d.Provider.Limbs = []ifaces.Column{createCol("sLimb")}
 	d.Provider.NBytes = createCol("sNBytes")
 	d.Provider.Index = createCol("sIndex")
 	d.Provider.ToHash = d.IsActive
@@ -105,7 +105,7 @@ func (d *GenericDataAccumulator) Run(run *wizard.ProverRuntime) {
 	asb := make([]assignmentBuilder, len(providers))
 	for i := range providers {
 		asb[i].HashNum = providers[i].HashNum.GetColAssignment(run).IntoRegVecSaveAlloc()
-		asb[i].Limb = providers[i].Limb.GetColAssignment(run).IntoRegVecSaveAlloc()
+		asb[i].Limb = providers[i].Limbs[0].GetColAssignment(run).IntoRegVecSaveAlloc()
 		asb[i].NBytes = providers[i].NBytes.GetColAssignment(run).IntoRegVecSaveAlloc()
 		asb[i].Index = providers[i].Index.GetColAssignment(run).IntoRegVecSaveAlloc()
 		asb[i].TO_HASH = providers[i].ToHash.GetColAssignment(run).IntoRegVecSaveAlloc()
@@ -160,7 +160,7 @@ func (d *GenericDataAccumulator) Run(run *wizard.ProverRuntime) {
 	}
 
 	run.AssignColumn(d.Provider.HashNum.GetColID(), smartvectors.RightZeroPadded(sHashNum, d.size))
-	run.AssignColumn(d.Provider.Limb.GetColID(), smartvectors.RightZeroPadded(sLimb, d.size))
+	run.AssignColumn(d.Provider.Limbs[0].GetColID(), smartvectors.RightZeroPadded(sLimb, d.size))
 	run.AssignColumn(d.Provider.NBytes.GetColID(), smartvectors.RightZeroPadded(sNBytes, d.size))
 	run.AssignColumn(d.Provider.Index.GetColID(), smartvectors.RightZeroPadded(sIndex, d.size))
 

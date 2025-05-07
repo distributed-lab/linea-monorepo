@@ -48,14 +48,14 @@ func NewSha2ZkEvm(comp *wizard.CompiledIOP, s Settings) *Sha2SingleProvider {
 			Data: generic.GenDataModule{
 				HashNum: comp.Columns.GetHandle("shakiradata.ID"),
 				Index:   comp.Columns.GetHandle("shakiradata.INDEX"),
-				Limb:    comp.Columns.GetHandle("shakiradata.LIMB"),
+				Limbs:   []ifaces.Column{comp.Columns.GetHandle("shakiradata.LIMB")},
 				NBytes:  comp.Columns.GetHandle("shakiradata.nBYTES"),
 				ToHash:  comp.Columns.GetHandle("shakiradata.IS_SHA2_DATA"),
 			},
 			Info: generic.GenInfoModule{
 				HashNum:  comp.Columns.GetHandle("shakiradata.ID"),
-				HashLo:   comp.Columns.GetHandle("shakiradata.LIMB"),
-				HashHi:   comp.Columns.GetHandle("shakiradata.LIMB"),
+				HashLo:   []ifaces.Column{comp.Columns.GetHandle("shakiradata.LIMB")},
+				HashHi:   []ifaces.Column{comp.Columns.GetHandle("shakiradata.LIMB")},
 				IsHashLo: column.Shift(comp.Columns.GetHandle("shakiradata.SELECTOR_SHA2_RES_HI"), -1),
 				IsHashHi: comp.Columns.GetHandle("shakiradata.SELECTOR_SHA2_RES_HI"),
 			},
@@ -114,13 +114,13 @@ func newSha2SingleProvider(comp *wizard.CompiledIOP, inp Sha2SingleProviderInput
 
 	projection.InsertProjection(comp, "SHA2_RES_HI",
 		[]ifaces.Column{cSha2.HashHi},
-		[]ifaces.Column{inp.Provider.Info.HashHi},
+		inp.Provider.Info.HashHi,
 		cSha2.IsEffFirstLaneOfNewHash,
 		inp.Provider.Info.IsHashHi,
 	)
 	projection.InsertProjection(comp, "SHA2_RES_LO",
 		[]ifaces.Column{cSha2.HashLo},
-		[]ifaces.Column{inp.Provider.Info.HashLo},
+		inp.Provider.Info.HashLo,
 		cSha2.IsEffFirstLaneOfNewHash,
 		inp.Provider.Info.IsHashLo,
 	)
