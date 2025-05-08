@@ -10,6 +10,7 @@ import (
 	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
 	sym "github.com/consensys/linea-monorepo/prover/symbolic"
+	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 	commonconstraints "github.com/consensys/linea-monorepo/prover/zkevm/prover/common/common_constraints"
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/hash/generic"
 )
@@ -97,8 +98,8 @@ func (txn *txSignature) GetProvider(comp *wizard.CompiledIOP, rlpTxn generic.Gen
 func (txn *txSignature) buildInfoModule() generic.GenInfoModule {
 	// TODO (Nazarevsky): this is not correct - we need to change the Hash module
 	info := generic.GenInfoModule{
-		HashHi:   txn.txHash[0],
-		HashLo:   txn.txHash[0],
+		HashHi:   txn.txHash[:common.NbLimbU128],
+		HashLo:   txn.txHash[common.NbLimbU128:],
 		IsHashHi: txn.isTxHash,
 		IsHashLo: txn.isTxHash,
 	}

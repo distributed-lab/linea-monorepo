@@ -124,7 +124,11 @@ func CreateGenDataModule(
 	createCol := common.CreateColFn(comp, name, size)
 	gbm.HashNum = createCol("HASH_NUM")
 	gbm.Index = createCol("INDEX")
-	gbm.Limbs = []ifaces.Column{createCol("LIMBS")}
+
+	for i := 0; i < common.NbLimbU128; i++ {
+		gbm.Limbs = append(gbm.Limbs, createCol("LIMBS_%d", i))
+	}
+
 	gbm.NBytes = createCol("NBYTES")
 	gbm.ToHash = createCol("TO_HASH")
 	return gbm
