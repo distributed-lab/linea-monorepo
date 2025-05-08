@@ -60,15 +60,15 @@ func NewGenericInfoAccumulator(comp *wizard.CompiledIOP, inp GenericAccumulatorI
 	for i, gbm := range info.Inputs.ProvidersInfo {
 
 		projection.InsertProjection(comp, ifaces.QueryIDf("Stitch_Modules_Hi_%v", i),
-			[]ifaces.Column{gbm.HashHi},
-			[]ifaces.Column{info.Provider.HashHi},
+			gbm.HashHi,
+			info.Provider.HashHi,
 			gbm.IsHashHi,
 			info.sFilters[i],
 		)
 
 		projection.InsertProjection(comp, ifaces.QueryIDf("Stitch_Modules_Lo_%v", i),
-			[]ifaces.Column{gbm.HashLo},
-			[]ifaces.Column{info.Provider.HashLo},
+			gbm.HashLo,
+			info.Provider.HashLo,
 			gbm.IsHashLo,
 			info.sFilters[i],
 		)
@@ -87,8 +87,8 @@ func (info *GenericInfoAccumulator) declareColumns(comp *wizard.CompiledIOP, nbP
 		info.sFilters[i] = createCol("sFilterOut_%v", i)
 	}
 
-	info.Provider.HashHi = createCol("Hash_Hi")
-	info.Provider.HashLo = createCol("Hash_Lo")
+	info.Provider.HashHi = []ifaces.Column{createCol("Hash_Hi")}
+	info.Provider.HashLo = []ifaces.Column{createCol("Hash_Lo")}
 
 	info.Provider.IsHashHi = info.IsActive
 	info.Provider.IsHashLo = info.IsActive
@@ -100,8 +100,8 @@ func (info *GenericInfoAccumulator) Run(run *wizard.ProverRuntime) {
 	providers := info.Inputs.ProvidersInfo
 	asb := make([]infoAssignmentBuilder, len(providers))
 	for i := range providers {
-		asb[i].hashHi = providers[i].HashHi.GetColAssignment(run).IntoRegVecSaveAlloc()
-		asb[i].hashLo = providers[i].HashLo.GetColAssignment(run).IntoRegVecSaveAlloc()
+		asb[i].hashHi = providers[i].HashHi[0].GetColAssignment(run).IntoRegVecSaveAlloc()
+		asb[i].hashLo = providers[i].HashLo[0].GetColAssignment(run).IntoRegVecSaveAlloc()
 		asb[i].isHashHi = providers[i].IsHashHi.GetColAssignment(run).IntoRegVecSaveAlloc()
 		asb[i].isHashLo = providers[i].IsHashLo.GetColAssignment(run).IntoRegVecSaveAlloc()
 	}
@@ -152,8 +152,8 @@ func (info *GenericInfoAccumulator) Run(run *wizard.ProverRuntime) {
 		}
 	}
 
-	run.AssignColumn(info.Provider.HashHi.GetColID(), smartvectors.RightZeroPadded(sHashHi, info.size))
-	run.AssignColumn(info.Provider.HashLo.GetColID(), smartvectors.RightZeroPadded(sHashLo, info.size))
+	run.AssignColumn(info.Provider.HashHi[0].GetColID(), smartvectors.RightZeroPadded(sHashHi, info.size))
+	run.AssignColumn(info.Provider.HashLo[0].GetColID(), smartvectors.RightZeroPadded(sHashLo, info.size))
 
 }
 

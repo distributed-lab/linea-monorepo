@@ -84,13 +84,13 @@ func NewKeccakSingleProvider(comp *wizard.CompiledIOP, inp KeccakSingleProviderI
 
 	projection.InsertProjection(comp, "KECCAK_RES_HI",
 		[]ifaces.Column{cKeccak.HashHi},
-		[]ifaces.Column{inp.Provider.Info.HashHi},
+		inp.Provider.Info.HashHi,
 		cKeccak.IsActive,
 		inp.Provider.Info.IsHashHi,
 	)
 	projection.InsertProjection(comp, "KECCAK_RES_LO",
 		[]ifaces.Column{cKeccak.HashLo},
-		[]ifaces.Column{inp.Provider.Info.HashLo},
+		inp.Provider.Info.HashLo,
 		cKeccak.IsActive,
 		inp.Provider.Info.IsHashLo,
 	)
