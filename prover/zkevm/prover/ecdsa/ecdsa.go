@@ -4,6 +4,7 @@ import (
 	"github.com/consensys/linea-monorepo/prover/protocol/dedicated/plonk"
 	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
+	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/hash/generic"
 )
 
@@ -67,11 +68,16 @@ func getTxnDataArithmetization(comp *wizard.CompiledIOP) *txnData {
 }
 
 func getRlpTxnArithmetization(comp *wizard.CompiledIOP) generic.GenDataModule {
-	return generic.GenDataModule{
+	res := generic.GenDataModule{
 		HashNum: comp.Columns.GetHandle("rlptxn.ABS_TX_NUM"),
 		Index:   comp.Columns.GetHandle("rlptxn.INDEX_LX"),
-		Limb:    comp.Columns.GetHandle("rlptxn.LIMB"),
 		NBytes:  comp.Columns.GetHandle("rlptxn.nBYTES"),
 		ToHash:  comp.Columns.GetHandle("rlptxn.TO_HASH_BY_PROVER"),
 	}
+
+	for i := 0; i < common.NbLimbU128; i++ {
+		res.Limbs = append(res.Limbs, comp.Columns.GetHandle(ifaces.ColIDf("rlptxn.LIMB_%d", i)))
+	}
+
+	return res
 }

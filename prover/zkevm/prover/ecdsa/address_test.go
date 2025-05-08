@@ -1,7 +1,7 @@
 package ecdsa
 
 import (
-	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
+	"fmt"
 	"testing"
 
 	"github.com/consensys/linea-monorepo/prover/protocol/compiler/dummy"
@@ -46,11 +46,14 @@ func TestAddress(t *testing.T) {
 
 		// TODO: change this
 		uaGnark = &UnalignedGnarkData{
-			GnarkData:           [8]ifaces.Column{gbmGnark.Limb},
 			GnarkPublicKeyIndex: gbmGnark.Index,
 			IsPublicKey:         gbmGnark.ToHash,
 		}
+
+		copy(uaGnark.GnarkData[:], gbmGnark.Limbs)
+
 		ac.UnalignedGnarkData = uaGnark
+		fmt.Println(ac.UnalignedGnarkData)
 
 		// commit to txnData and ecRecover
 		td, ecRec = commitEcRecTxnData(comp, sizeTxnData, size, ac)
@@ -63,6 +66,7 @@ func TestAddress(t *testing.T) {
 			Provider:      addr.provider,
 			MaxNumKeccakF: nbKeccakF,
 		}
+
 		m = keccak.NewKeccakSingleProvider(comp, keccakInp)
 
 	}, dummy.Compile)
