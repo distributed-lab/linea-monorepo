@@ -449,28 +449,20 @@ func (d *UnalignedGnarkData) csProjectionEcRecover(comp *wizard.CompiledIOP, src
 }
 
 func (d *UnalignedGnarkData) csTxHash(comp *wizard.CompiledIOP, src *unalignedGnarkDataSource) {
-	// TODO: for now, we create just two global constraints instead of applying every constraint on a limb column.
-	// I'm not sure about this.
-
 	// that we have projected correctly txHashHi and txHashLo
-	var hiMulExpression = sym.NewConstant(1)
-	var loMulExpression = sym.NewConstant(1)
 	for i := 0; i < nbLimbColumns; i++ {
-		hiMulExpression = sym.Mul(hiMulExpression, sym.Sub(d.GnarkData[i], src.TxHash[i]))
-		loMulExpression = sym.Mul(loMulExpression, sym.Sub(d.GnarkData[i], src.TxHash[i+nbLimbColumns]))
+		comp.InsertGlobal(
+			ROUND_NR,
+			ifaces.QueryIDf("%v_%v_%d", NAME_UNALIGNED_GNARKDATA, "TXHASH_HI", i),
+			sym.Mul(d.isIndex4, src.Source, sym.Sub(d.GnarkData[i], src.TxHash[i])),
+		)
+
+		comp.InsertGlobal(
+			ROUND_NR,
+			ifaces.QueryIDf("%v_%v_%d", NAME_UNALIGNED_GNARKDATA, "TXHASH_LO", i),
+			sym.Mul(d.isIndex5, src.Source, sym.Sub(d.GnarkData[i], src.TxHash[i+nbLimbColumns])),
+		)
 	}
-
-	comp.InsertGlobal(
-		ROUND_NR,
-		ifaces.QueryIDf("%v_%v", NAME_UNALIGNED_GNARKDATA, "TXHASH_HI"),
-		sym.Mul(d.isIndex4, src.Source, hiMulExpression),
-	)
-
-	comp.InsertGlobal(
-		ROUND_NR,
-		ifaces.QueryIDf("%v_%v", NAME_UNALIGNED_GNARKDATA, "TXHASH_LO"),
-		sym.Mul(d.isIndex5, src.Source, loMulExpression),
-	)
 }
 
 func (d *UnalignedGnarkData) csTxEcRecoverBit(comp *wizard.CompiledIOP, src *unalignedGnarkDataSource) {
