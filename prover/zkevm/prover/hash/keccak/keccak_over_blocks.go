@@ -5,7 +5,6 @@ import (
 	"github.com/consensys/linea-monorepo/prover/maths/field"
 	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
-	"github.com/consensys/linea-monorepo/prover/symbolic"
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/hash/keccak/base_conversion"
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/hash/keccak/keccakf"
@@ -92,9 +91,9 @@ func NewKeccakOverBlocks(comp *wizard.CompiledIOP, inp KeccakOverBlockInputs) *K
 	}
 
 	blockSpaghetti := spaghettifier.Spaghettify(comp, inpSpaghetti)
-	comp.InsertGlobal(0, "BLOCK_Is_LANEX",
-		symbolic.Sub(blockSpaghetti.ContentSpaghetti[0], bcForBlock.LaneX),
-	)
+	//comp.InsertGlobal(0, "BLOCK_Is_LANEX",
+	//	symbolic.Sub(blockSpaghetti.ContentSpaghetti[0], bcForBlock.LaneX),
+	//)
 
 	// set the module
 	m := &KeccakOverBlocks{

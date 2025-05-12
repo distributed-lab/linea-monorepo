@@ -1,4 +1,4 @@
-package ecdsa
+package common
 
 import (
 	"github.com/stretchr/testify/assert"
@@ -29,7 +29,7 @@ func TestDivideBytes(t *testing.T) {
 	}
 
 	for _, cc := range cases {
-		limbs := divideBytes(cc.input)
+		limbs := DivideBytes(cc.input)
 		assert.Equal(t, cc.expected, limbs)
 	}
 }
