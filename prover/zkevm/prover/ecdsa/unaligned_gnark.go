@@ -473,14 +473,11 @@ func (d *UnalignedGnarkData) csTxEcRecoverBit(comp *wizard.CompiledIOP, src *una
 	// additionally, we do not have to binary constrain as it is already
 	// enforced inside gnark circuit
 
-	var mulExpression = sym.NewConstant(1)
 	for i := 0; i < nbLimbColumns; i++ {
-		mulExpression = sym.Mul(mulExpression, d.GnarkData[i])
+		comp.InsertGlobal(
+			ROUND_NR,
+			ifaces.QueryIDf("%v_%v_%d", NAME_UNALIGNED_GNARKDATA, "ECRECOVERBIT", i),
+			sym.Mul(d.isIndex13, src.Source, d.GnarkData[i]),
+		)
 	}
-
-	comp.InsertGlobal(
-		ROUND_NR,
-		ifaces.QueryIDf("%v_%v", NAME_UNALIGNED_GNARKDATA, "ECRECOVERBIT"),
-		sym.Mul(d.isIndex13, src.Source, mulExpression),
-	)
 }
