@@ -37,7 +37,7 @@ func TestAntichamber(t *testing.T) {
 		MaxNbEcRecover:     3,
 		MaxNbTx:            2,
 		NbInputInstance:    5,
-		NbCircuitInstances: 1,
+		NbCircuitInstances: 7,
 	}
 	var rlpTxn generic.GenDataModule
 

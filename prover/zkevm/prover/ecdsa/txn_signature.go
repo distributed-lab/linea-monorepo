@@ -96,7 +96,6 @@ func (txn *txSignature) GetProvider(comp *wizard.CompiledIOP, rlpTxn generic.Gen
 
 // it builds an infoModule from native columns
 func (txn *txSignature) buildInfoModule() generic.GenInfoModule {
-	// TODO (Nazarevsky): this is not correct - we need to change the Hash module
 	info := generic.GenInfoModule{
 		HashHi:   txn.txHash[:common.NbLimbU128],
 		HashLo:   txn.txHash[common.NbLimbU128:],
@@ -124,7 +123,7 @@ func (txn *txSignature) assignTxSignature(run *wizard.ProverRuntime, nbActualEcR
 	}
 
 	for _, digest := range permTrace.HashOutPut {
-		hashLimbs := divideBytes(digest[:])
+		hashLimbs := common.DivideBytes(digest[:])
 		for j, limb := range hashLimbs {
 			// Initialize limb values for each column of txHash
 			var element field.Element

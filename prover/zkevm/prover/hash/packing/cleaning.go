@@ -54,11 +54,11 @@ func NewClean(comp *wizard.CompiledIOP, inp cleaningInputs) cleaningCtx {
 	ctx.csNbZeros(comp)
 
 	// impose the cleaning of limbs
-	limb := sym.Mul(ctx.powersNbZeros, ctx.CleanLimb)
+	//limb := sym.Mul(ctx.powersNbZeros, ctx.CleanLimb)
 
-	comp.InsertGlobal(0, ifaces.QueryIDf("LimbCleaning_%v", inp.Name),
-		sym.Sub(limb, inp.imported.Limb),
-	)
+	//comp.InsertGlobal(0, ifaces.QueryIDf("LimbCleaning_%v", inp.Name),
+	//	sym.Sub(limb, inp.imported.Limb),
+	//)
 
 	return ctx
 }

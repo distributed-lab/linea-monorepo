@@ -9,8 +9,6 @@ import (
 	"github.com/consensys/linea-monorepo/prover/protocol/column"
 	"github.com/consensys/linea-monorepo/prover/protocol/dedicated"
 	"github.com/consensys/linea-monorepo/prover/protocol/dedicated/projection"
-	"slices"
-
 	//"github.com/consensys/linea-monorepo/prover/protocol/dedicated/projection"
 	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
@@ -146,6 +144,7 @@ func newAddress(comp *wizard.CompiledIOP, size int, ecRec *EcRecover, ac *antich
 		sym.Mul(ac.IsActive,
 			sym.Sub(addr.hashNum, ac.ID, 1)),
 	)
+
 	// assign the keccak provider
 	addr.provider = addr.GetProvider(comp, addr.hashNum, ac.UnalignedGnarkData)
 
@@ -271,11 +270,7 @@ func (addr *Addresses) assignMainColumns(
 			n = nbRowsPerTxSign
 		}
 
-		// We reverse the digest here, so we can trim the latest (not first) bytes and divide bytes into limbs in
-		// the little endian format.
-		slices.Reverse(digest[:])
-
-		addressUntrimmed := divideBytes(digest[:])
+		addressUntrimmed := common.DivideBytes(digest[:])
 		for j, limb := range addressUntrimmed {
 			// Initialize limb values for each column of addressUntrimmed
 			var element field.Element
@@ -285,7 +280,7 @@ func (addr *Addresses) assignMainColumns(
 			addressUntrimmedColumns[j] = append(addressUntrimmedColumns[j], repeat...)
 		}
 
-		address := divideBytes(digest[halfDigest-trimmingSize:])
+		address := common.DivideBytes(digest[halfDigest-trimmingSize:])
 		for j, limb := range address {
 			// Initialize limb values for each column of address
 			var element field.Element

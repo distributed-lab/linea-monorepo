@@ -2,7 +2,6 @@ package generic
 
 import (
 	"bytes"
-
 	"github.com/consensys/linea-monorepo/prover/maths/field"
 	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
@@ -10,7 +9,7 @@ import (
 
 const (
 	// totalLimbSize is the total size of a limb in bytes.
-	totalLimbSize = 16
+	totalLimbSize = 2
 	// nbUnusedBytes is the number of unused bytes in of the limb
 	// represented by the field element. The field element is 32 bytes
 	// long, and the limb is 16 bytes long, so 16 bytes are unused.
@@ -52,18 +51,19 @@ type GenInfoModule struct {
 func (gdm *GenDataModule) ScanStreams(run *wizard.ProverRuntime) [][]byte {
 
 	var (
-		numRow      = gdm.Limbs[0].Size()
-		numСols     = uint64(len(gdm.Limbs))
-		index       = gdm.Index.GetColAssignment(run).IntoRegVecSaveAlloc()
-		toHash      = gdm.ToHash.GetColAssignment(run).IntoRegVecSaveAlloc()
-		hashNum     = gdm.HashNum.GetColAssignment(run).IntoRegVecSaveAlloc()
-		nByte       = gdm.NBytes.GetColAssignment(run).IntoRegVecSaveAlloc()
+		numRow  = gdm.Limbs[0].Size()
+		numСols = uint64(len(gdm.Limbs))
+		index   = gdm.Index.GetColAssignment(run).IntoRegVecSaveAlloc()
+		toHash  = gdm.ToHash.GetColAssignment(run).IntoRegVecSaveAlloc()
+		hashNum = gdm.HashNum.GetColAssignment(run).IntoRegVecSaveAlloc()
+		//nByte       = gdm.NBytes.GetColAssignment(run).IntoRegVecSaveAlloc()
 		streams     = [][]byte(nil)
 		buffer      = &bytes.Buffer{}
 		currHashNum field.Element
-	)
 
-	maxNbBytesPerLimb := (totalLimbSize + numСols - 1) / numСols
+		// Used for checking empty limbs
+		zeroArray = [32]byte{}
+	)
 
 	limbs := make([][]field.Element, numСols)
 	for i := uint64(0); i < numСols; i++ {
@@ -84,21 +84,17 @@ func (gdm *GenDataModule) ScanStreams(run *wizard.ProverRuntime) [][]byte {
 			currHashNum = hashNum[row]
 		}
 
-		currNbBytes := nByte[row].Uint64()
 		for col := uint64(0); col < numСols; col++ {
 			currLimb := limbs[col][row].Bytes()
-
-			if (col+1)*maxNbBytesPerLimb <= currNbBytes {
-				buffer.Write(currLimb[nbUnusedBytes : nbUnusedBytes+maxNbBytesPerLimb])
+			if bytes.Equal(currLimb[:], zeroArray[:]) {
 				continue
 			}
 
-			nonZeroBytes := currNbBytes % maxNbBytesPerLimb
-			buffer.Write(currLimb[nbUnusedBytes : nbUnusedBytes+nonZeroBytes])
-			break
+			buffer.Write(currLimb[nbUnusedBytes : nbUnusedBytes+totalLimbSize])
 		}
 	}
 
 	streams = append(streams, buffer.Bytes())
+
 	return streams
 }
