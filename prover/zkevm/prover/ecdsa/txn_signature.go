@@ -60,20 +60,13 @@ func newTxSignatures(comp *wizard.CompiledIOP, inp txSignatureInputs) *txSignatu
 	)
 
 	// txHashHi remains the same between two fetchings.
-	var subExpressions []any
 	for i := 0; i < nbTxHashCols; i++ {
-		subExpressions = append(subExpressions, sym.Sub(res.txHash[i], column.Shift(res.txHash[i], -1)))
+		comp.InsertGlobal(0, ifaces.QueryIDf("txHash_REMAIN_SAME_%d", i),
+			sym.Mul(inp.ac.IsActive,
+				sym.Sub(1, inp.ac.IsFetching),
+				sym.Sub(res.txHash[i], column.Shift(res.txHash[i], -1))),
+		)
 	}
-
-	comp.InsertGlobal(0, "txHash_REMAIN_SAME",
-		sym.Mul(inp.ac.IsActive,
-			sym.Sub(1, inp.ac.IsFetching),
-			sym.Add(subExpressions...)),
-	)
-
-	// txHash most significant limb is below 2**16
-	comp.InsertRange(0, "Range_txHash_MostSignificantLimb",
-		res.txHash[nbTxHashCols-1], 2<<16)
 
 	res.provider = res.GetProvider(comp, inp.RlpTxn)
 

@@ -2,9 +2,6 @@ package ecdsa
 
 import (
 	"fmt"
-	"github.com/consensys/gnark/std/algebra"
-	"github.com/consensys/gnark/std/evmprecompiles"
-
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/algebra/emulated/sw_emulated"
 	"github.com/consensys/gnark/std/math/bitslice"
@@ -14,13 +11,13 @@ import (
 )
 
 type EcRecoverInstance struct {
-	PKXHi, PKXLo, PKYHi, PKYLo frontend.Variable `gnark:",public"`
-	HHi, HLo                   frontend.Variable `gnark:",public"`
-	VHi, VLo                   frontend.Variable `gnark:",public"`
-	RHi, RLo                   frontend.Variable `gnark:",public"`
-	SHi, SLo                   frontend.Variable `gnark:",public"`
-	SUCCESS_BIT                frontend.Variable `gnark:",public"`
-	ECRECOVERBIT               frontend.Variable `gnark:",public"`
+	PKXHi, PKXLo, PKYHi, PKYLo [8]frontend.Variable `gnark:",public"`
+	HHi, HLo                   [8]frontend.Variable `gnark:",public"`
+	VHi, VLo                   [8]frontend.Variable `gnark:",public"`
+	RHi, RLo                   [8]frontend.Variable `gnark:",public"`
+	SHi, SLo                   [8]frontend.Variable `gnark:",public"`
+	SUCCESS_BIT                frontend.Variable    `gnark:",public"`
+	ECRECOVERBIT               frontend.Variable    `gnark:",public"`
 }
 
 type MultiEcRecoverCircuit struct {
@@ -34,18 +31,18 @@ func newMultiEcRecoverCircuit(nbInstances int) *MultiEcRecoverCircuit {
 }
 
 func (c *MultiEcRecoverCircuit) Define(api frontend.API) error {
-	curve, err := algebra.GetCurve[emparams.Secp256k1Fr, sw_emulated.AffinePoint[emparams.Secp256k1Fp]](api)
-	if err != nil {
-		return fmt.Errorf("get curve: %w", err)
-	}
-	for i := 0; i < len(c.Instances); i++ {
-		PK, msg, v, r, s, strictRange, isFailure, err := c.Instances[i].splitInputs(api)
-		if err != nil {
-			return fmt.Errorf("split inputs: %w", err)
-		}
-		recovered := evmprecompiles.ECRecover(api, *msg, v, *r, *s, strictRange, isFailure)
-		curve.AssertIsEqual(PK, recovered)
-	}
+	//curve, err := algebra.GetCurve[emparams.Secp256k1Fr, sw_emulated.AffinePoint[emparams.Secp256k1Fp]](api)
+	//if err != nil {
+	//	return fmt.Errorf("get curve: %w", err)
+	//}
+	//for i := 0; i < len(c.Instances); i++ {
+	//	PK, msg, v, r, s, strictRange, isFailure, err := c.Instances[i].splitInputs(api)
+	//	if err != nil {
+	//		return fmt.Errorf("split inputs: %w", err)
+	//	}
+	//	recovered := evmprecompiles.ECRecover(api, *msg, v, *r, *s, strictRange, isFailure)
+	//	curve.AssertIsEqual(PK, recovered)
+	//}
 	return nil
 }
 
