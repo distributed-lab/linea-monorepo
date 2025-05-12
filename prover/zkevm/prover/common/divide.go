@@ -1,8 +1,8 @@
-package ecdsa
+package common
 
-// divideBytes splits the input slice into subarrays of 2 bytes each.
+// DivideBytes splits the input slice into subarrays of 2 bytes each.
 // If the input slice length is odd, the last subarray will contain a single byte.
-func divideBytes(input []byte) [][]byte {
+func DivideBytes(input []byte) [][]byte {
 	if len(input) == 0 {
 		return [][]byte{}
 	}

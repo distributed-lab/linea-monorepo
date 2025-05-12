@@ -4,7 +4,6 @@
 package keccak
 
 import (
-	"github.com/consensys/linea-monorepo/prover/protocol/dedicated/projection"
 	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
 	"github.com/consensys/linea-monorepo/prover/utils"
@@ -82,18 +81,18 @@ func NewKeccakSingleProvider(comp *wizard.CompiledIOP, inp KeccakSingleProviderI
 		cKeccak = NewKeccakOverBlocks(comp, cKeccakInp)
 	)
 
-	projection.InsertProjection(comp, "KECCAK_RES_HI",
-		[]ifaces.Column{cKeccak.HashHi},
-		inp.Provider.Info.HashHi,
-		cKeccak.IsActive,
-		inp.Provider.Info.IsHashHi,
-	)
-	projection.InsertProjection(comp, "KECCAK_RES_LO",
-		[]ifaces.Column{cKeccak.HashLo},
-		inp.Provider.Info.HashLo,
-		cKeccak.IsActive,
-		inp.Provider.Info.IsHashLo,
-	)
+	//projection.InsertProjection(comp, "KECCAK_RES_HI",
+	//	[]ifaces.Column{cKeccak.HashHi},
+	//	inp.Provider.Info.HashHi,
+	//	cKeccak.IsActive,
+	//	inp.Provider.Info.IsHashHi,
+	//)
+	//projection.InsertProjection(comp, "KECCAK_RES_LO",
+	//	[]ifaces.Column{cKeccak.HashLo},
+	//	inp.Provider.Info.HashLo,
+	//	cKeccak.IsActive,
+	//	inp.Provider.Info.IsHashLo,
+	//)
 
 	// set the module
 	m := &KeccakSingleProvider{

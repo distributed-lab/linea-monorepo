@@ -1,7 +1,6 @@
 package ecdsa
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/consensys/linea-monorepo/prover/protocol/compiler/dummy"
@@ -44,7 +43,6 @@ func TestAddress(t *testing.T) {
 			ID:     gbmGnark.HashNum,
 		}
 
-		// TODO: change this
 		uaGnark = &UnalignedGnarkData{
 			GnarkPublicKeyIndex: gbmGnark.Index,
 			IsPublicKey:         gbmGnark.ToHash,
@@ -53,7 +51,6 @@ func TestAddress(t *testing.T) {
 		copy(uaGnark.GnarkData[:], gbmGnark.Limbs)
 
 		ac.UnalignedGnarkData = uaGnark
-		fmt.Println(ac.UnalignedGnarkData)
 
 		// commit to txnData and ecRecover
 		td, ecRec = commitEcRecTxnData(comp, sizeTxnData, size, ac)
@@ -74,6 +71,7 @@ func TestAddress(t *testing.T) {
 	proof := wizard.Prove(compiled, func(run *wizard.ProverRuntime) {
 
 		testdata.GenerateAndAssignGenDataModule(run, &gbmGnark, c.HashNum, c.ToHash, false)
+
 		// it assign mock data to EcRec and txn_data
 		AssignEcRecTxnData(run, gbmGnark, limits.MaxNbEcRecover, limits.MaxNbTx, sizeTxnData, size, td, ecRec, ac)
 

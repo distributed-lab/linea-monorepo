@@ -3,6 +3,7 @@ package testdata
 import (
 	"fmt"
 	"math/rand/v2"
+	"strings"
 
 	"github.com/consensys/linea-monorepo/prover/backend/files"
 	"github.com/consensys/linea-monorepo/prover/crypto/keccak"
@@ -20,19 +21,25 @@ func GenerateAndAssignGenDataModule(run *wizard.ProverRuntime, gdm *generic.GenD
 
 	var (
 		size    = gdm.Limbs[0].Size()
-		limbs   = make([]field.Element, size)
 		nBytes  = make([]field.Element, size)
 		toHash  = make([]field.Element, size)
 		index   = make([]field.Element, size)
 		hashNum = make([]field.Element, size)
-		rng     = rand.New(rand.NewChaCha8([32]byte{}))
+
+		limbs    [common.NbLimbU256][]field.Element
+		limbCols [common.NbLimbU256]*common.VectorBuilder
+
+		rng = rand.New(rand.NewChaCha8([32]byte{}))
 
 		nByteCol   = common.NewVectorBuilder(gdm.NBytes)
-		limbCol    = common.NewVectorBuilder(gdm.Limbs[0])
 		hashNumCol = common.NewVectorBuilder(gdm.HashNum)
 		toHashCol  = common.NewVectorBuilder(gdm.ToHash)
 		indexCol   = common.NewVectorBuilder(gdm.Index)
 	)
+
+	for i := 0; i < common.NbLimbU256; i++ {
+		limbCols[i] = common.NewVectorBuilder(gdm.Limbs[i])
+	}
 
 	for i := range hashNumInt {
 
@@ -58,16 +65,28 @@ func GenerateAndAssignGenDataModule(run *wizard.ProverRuntime, gdm *generic.GenD
 			numBytesInt = 16
 		}
 
-		limbs[i] = randLimbs(rng, numBytesInt)
+		randElement := randLimbs(rng, numBytesInt)
+		limbBytes := randElement.Bytes()
+		dividedLimbs := common.DivideBytes(limbBytes[32-numBytesInt:])
+		for j, limb := range dividedLimbs {
+			var l field.Element
+			l.SetBytes(limb)
+
+			limbs[j] = append(limbs[j], l)
+		}
+
 	}
 
-	limbCol.PushSliceF(limbs)
 	nByteCol.PushSliceF(nBytes)
 	hashNumCol.PushSliceF(hashNum)
 	indexCol.PushSliceF(index)
 	toHashCol.PushSliceF(toHash)
 
-	limbCol.PadAndAssign(run)
+	for i, col := range limbCols {
+		col.PushSliceF(limbs[i])
+		col.PadAndAssign(run)
+	}
+
 	nByteCol.PadAndAssign(run)
 	hashNumCol.PadAndAssign(run)
 	indexCol.PadAndAssign(run)
@@ -79,12 +98,17 @@ func GenerateAndAssignGenDataModule(run *wizard.ProverRuntime, gdm *generic.GenD
 		fmt.Fprint(oF, "TO_HASH,HASH_NUM,INDEX,NBYTES,LIMBS\n")
 
 		for i := range hashNumInt {
+			var limbsStr []string
+			for _, l := range limbs[i] {
+				limbsStr = append(limbsStr, fmt.Sprintf("0x%s", l.Text(16)))
+			}
+
 			fmt.Fprintf(oF, "%v,%v,%v,%v,0x%v\n",
 				toHash[i].String(),
 				hashNum[i].String(),
 				index[i].String(),
 				nBytes[i].String(),
-				limbs[i].Text(16),
+				strings.Join(limbsStr, ","),
 			)
 		}
 
@@ -125,7 +149,7 @@ func CreateGenDataModule(
 	gbm.HashNum = createCol("HASH_NUM")
 	gbm.Index = createCol("INDEX")
 
-	for i := 0; i < common.NbLimbU128; i++ {
+	for i := 0; i < common.NbLimbU256; i++ {
 		gbm.Limbs = append(gbm.Limbs, createCol("LIMBS_%d", i))
 	}
 

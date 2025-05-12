@@ -3,6 +3,7 @@ package ecdsa
 import (
 	"fmt"
 	"github.com/consensys/linea-monorepo/prover/protocol/dedicated/projection"
+	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 	"math/big"
 
 	"github.com/consensys/gnark-crypto/ecc/secp256k1/ecdsa"
@@ -166,7 +167,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			oneLimbs[nbLimbColumns-1] = field.NewElement(1)
 
 			for j, limb := range oneLimbs {
-				rows[96+len(successBitLimbs)+j] = limb
+				rows[104+j] = limb
 			}
 
 			// copy h0, h1, r0, r1, s0, s1, v0, v1
@@ -222,7 +223,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 
 			var zeroLimbs [nbLimbColumns]field.Element
 			for j, limb := range zeroLimbs {
-				rows[96+len(successBitLimbs)+j] = limb
+				rows[104+j] = limb
 			}
 
 			for j := 0; j < nbTxHashCols; j++ {
@@ -244,21 +245,21 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 
 			v.FillBytes(buf[:])
 
-			vLimbs := divideBytes(buf[:])
+			vLimbs := common.DivideBytes(buf[:])
 			for j, vLimb := range vLimbs {
 				rows[48+j].SetBytes(vLimb)
 			}
 
 			r.FillBytes(buf[:])
 
-			rLimbs := divideBytes(buf[:])
+			rLimbs := common.DivideBytes(buf[:])
 			for j, rLimb := range rLimbs {
 				rows[48+len(vLimbs)+j].SetBytes(rLimb)
 			}
 
 			s.FillBytes(buf[:])
 
-			sLimbs := divideBytes(buf[:])
+			sLimbs := common.DivideBytes(buf[:])
 			for j, sLimb := range sLimbs {
 				rows[48+len(vLimbs)+len(rLimbs)+j].SetBytes(sLimb)
 			}
@@ -280,13 +281,13 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 		}
 
 		pkx := pk.A.X.Bytes()
-		pkxLimbs := divideBytes(pkx[:])
+		pkxLimbs := common.DivideBytes(pkx[:])
 		for j, xLimb := range pkxLimbs {
 			rows[j].SetBytes(xLimb)
 		}
 
 		pky := pk.A.Y.Bytes()
-		pkyLimbs := divideBytes(pky[:])
+		pkyLimbs := common.DivideBytes(pky[:])
 		for j, yLimb := range pkyLimbs {
 			rows[16+j].SetBytes(yLimb)
 		}
@@ -473,9 +474,6 @@ func (d *UnalignedGnarkData) csTxHash(comp *wizard.CompiledIOP, src *unalignedGn
 }
 
 func (d *UnalignedGnarkData) csTxEcRecoverBit(comp *wizard.CompiledIOP, src *unalignedGnarkDataSource) {
-	// TODO: for now, we create just two global constraints instead of applying every constraint on a limb column.
-	// I'm not sure about this.
-
 	// that we set ecrecoverbit correctly for txhash (==0). We do not care for
 	// ecrecover as we would be additionally restricting the inputs otherwise
 	// and would not be able to solve for valid inputs if the input is valid.

@@ -41,7 +41,6 @@ func (ugd *UnalignedGnarkData) cols() []ifaces.Column {
 }
 
 func (ac *antichamber) unalignedGnarkDataSource() *unalignedGnarkDataSource {
-	// TODO: change unalignedGnarkDataSource
 	return &unalignedGnarkDataSource{
 		IsActive:   ac.IsActive,
 		IsPushing:  ac.IsPushing,

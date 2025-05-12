@@ -9,9 +9,9 @@ import (
 	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
 	"github.com/consensys/linea-monorepo/prover/utils"
+	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/hash/generic"
 	"golang.org/x/crypto/sha3"
-	"slices"
 )
 
 func commitEcRecTxnData(comp *wizard.CompiledIOP, size1 int, size int, ac *antichamber) (td *txnData, ecRec *EcRecover) {
@@ -43,7 +43,6 @@ func AssignEcRecTxnData(
 	td *txnData, ecRec *EcRecover,
 	ac *antichamber,
 ) {
-
 	streams := gbm.ScanStreams(run)
 	permTrace := keccak.GenerateTrace(streams)
 
@@ -76,13 +75,11 @@ func AssignEcRecTxnData(
 
 	for i, hashRes := range permTrace.HashOutPut {
 		if i < nbEcRec {
-			slices.Reverse(hashRes[:])
-
 			isEcRecRes[i*nbRowsPerEcRec+offSetEcRec] = field.One()
 			isEcRecRes[i*nbRowsPerEcRec+offSetEcRec+1] = field.One()
 
-			ecRecHiLimbs := divideBytes(hashRes[halfDigest-trimmingSize : halfDigest])
-			ecRecLoLimbs := divideBytes(hashRes[halfDigest:])
+			ecRecHiLimbs := common.DivideBytes(hashRes[halfDigest-trimmingSize : halfDigest])
+			ecRecLoLimbs := common.DivideBytes(hashRes[halfDigest:])
 
 			for j := 0; j < nbLimbColumns; j++ {
 				if j >= nbLimbColumns-2 {
@@ -94,8 +91,7 @@ func AssignEcRecTxnData(
 
 			continue
 		} else {
-			slices.Reverse(hashRes[:])
-			fromLimbs := divideBytes(hashRes[:])
+			fromLimbs := common.DivideBytes(hashRes[:])
 			j := i - nbEcRec
 
 			for k, limb := range fromLimbs {
@@ -155,6 +151,7 @@ func (td *txnData) assignTxnDataFromPK(
 		hasher.Write(buf[:])
 		res := hasher.Sum(nil)
 		hasher.Reset()
+
 		pkHash = append(pkHash, res)
 	}
 
@@ -174,7 +171,7 @@ func (td *txnData) assignTxnDataFromPK(
 	}
 
 	for i := 0; i < len(pkHash); i++ {
-		fromLimbs := divideBytes(pkHash[i])
+		fromLimbs := common.DivideBytes(pkHash[i])
 
 		for j, limb := range fromLimbs {
 			// Initialize limb values for each column of from
