@@ -48,7 +48,7 @@ func getEcdataArithmetization(comp *wizard.CompiledIOP) *ecDataSource {
 		IsRes:       comp.Columns.GetHandle("ecdata.IS_ECRECOVER_RESULT"),
 	}
 
-	for i := 0; i < nbLimbColumns; i++ {
+	for i := 0; i < common.NbLimbU128; i++ {
 		src.Limb[i] = comp.Columns.GetHandle(ifaces.ColIDf("ecdata.LIMB_%d", i))
 	}
 
@@ -60,7 +60,7 @@ func getTxnDataArithmetization(comp *wizard.CompiledIOP) *txnData {
 		ct: comp.Columns.GetHandle("txndata.CT"),
 	}
 
-	for i := 0; i < txnDataFromColsNumber; i++ {
+	for i := 0; i < common.NbLimbU256; i++ {
 		td.from[i] = comp.Columns.GetHandle(ifaces.ColIDf("txndata.FROM_%d", i))
 	}
 

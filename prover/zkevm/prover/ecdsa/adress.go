@@ -18,15 +18,6 @@ import (
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/hash/generic"
 )
 
-const (
-	// Number of columns that represent an address.
-	addressColsNumber = 10
-	// Number of columns that represent an untrimmed address.
-	addressUntrimmedColsNumber = 16
-	// Number of columns that represent a hash value in txnData.
-	txnDataFromColsNumber = 16
-)
-
 // Address submodule is responsible for the columns holding the address of the sender,
 // and checking their consistency with the claimed public key
 // (since address is the truncated hash of public key).
@@ -35,8 +26,8 @@ const (
 //
 // The public-key comes from Gnark-Data.
 type Addresses struct {
-	addressUntrimmed [addressUntrimmedColsNumber]ifaces.Column
-	address          [addressColsNumber]ifaces.Column
+	addressUntrimmed [common.NbLimbU256]ifaces.Column
+	address          [common.NbLimbEthAddress]ifaces.Column
 
 	// filters over address columns
 	isAddress            ifaces.Column
@@ -65,14 +56,14 @@ func newAddress(comp *wizard.CompiledIOP, size int, ecRec *EcRecover, ac *antich
 	ecRecSize := ecRec.EcRecoverIsRes.Size()
 
 	// Create columns for every 16 bit limb of address
-	address := [addressColsNumber]ifaces.Column{}
-	for i := 0; i < addressColsNumber; i++ {
+	address := [common.NbLimbEthAddress]ifaces.Column{}
+	for i := 0; i < common.NbLimbEthAddress; i++ {
 		address[i] = createCol(fmt.Sprintf("ADDRESS_%d", i))
 	}
 
 	// Create columns for every 16 bit limb of addressUntrimmed
-	addressUntrimmed := [addressUntrimmedColsNumber]ifaces.Column{}
-	for i := 0; i < addressUntrimmedColsNumber; i++ {
+	addressUntrimmed := [common.NbLimbU256]ifaces.Column{}
+	for i := 0; i < common.NbLimbU256; i++ {
 		addressUntrimmed[i] = createCol(fmt.Sprintf("ADRESS_UNTRIMMED_%d", i))
 	}
 
@@ -167,7 +158,7 @@ func (addr *Addresses) csIsAddressHiEcRec(comp *wizard.CompiledIOP, ecRec *EcRec
 
 // The constraints for trimming the addressUntrimmed to address
 func (addr *Addresses) csAddressTrimming(comp *wizard.CompiledIOP) {
-	for i := 0; i < addressColsNumber; i++ {
+	for i := 0; i < common.NbLimbEthAddress; i++ {
 		comp.InsertGlobal(0, ifaces.QueryIDf("Address_Trimming_%d", i), sym.Sub(addr.address[i], addr.addressUntrimmed[i+6]))
 	}
 }
@@ -250,14 +241,14 @@ func (addr *Addresses) assignMainColumns(
 	permTrace := keccak.GenerateTrace(streams)
 
 	// Initialize an array of addressUntrimmedColumns limbs columns
-	addressUntrimmedColumns := make([][]field.Element, 0, addressUntrimmedColsNumber)
-	for i := 0; i < addressUntrimmedColsNumber; i++ {
+	addressUntrimmedColumns := make([][]field.Element, 0, common.NbLimbU256)
+	for i := 0; i < common.NbLimbU256; i++ {
 		addressUntrimmedColumns = append(addressUntrimmedColumns, make([]field.Element, 0, len(permTrace.HashOutPut)))
 	}
 
 	// Initialize an array of address limbs columns
-	addressColumns := make([][]field.Element, 0, addressColsNumber)
-	for i := 0; i < addressColsNumber; i++ {
+	addressColumns := make([][]field.Element, 0, common.NbLimbEthAddress)
+	for i := 0; i < common.NbLimbEthAddress; i++ {
 		addressColumns = append(addressColumns, make([]field.Element, 0, len(permTrace.HashOutPut)))
 	}
 
@@ -299,11 +290,11 @@ func (addr *Addresses) assignMainColumns(
 
 	// Assign values to columns
 	// We do a reverse of address columns since the address was storing in big-endian format.
-	for i := 0; i < addressUntrimmedColsNumber; i++ {
+	for i := 0; i < common.NbLimbU256; i++ {
 		run.AssignColumn(addr.addressUntrimmed[i].GetColID(), smartvectors.RightZeroPadded(addressUntrimmedColumns[i], size))
 	}
 
-	for i := 0; i < addressColsNumber; i++ {
+	for i := 0; i < common.NbLimbEthAddress; i++ {
 		run.AssignColumn(addr.address[i].GetColID(), smartvectors.RightZeroPadded(addressColumns[i], size))
 	}
 
@@ -339,7 +330,7 @@ func (td *txnData) csTxnData(comp *wizard.CompiledIOP) {
 
 // txndata represents the txn_data module from the arithmetization side.
 type txnData struct {
-	from [txnDataFromColsNumber]ifaces.Column
+	from [common.NbLimbU256]ifaces.Column
 	ct   ifaces.Column
 
 	// helper column

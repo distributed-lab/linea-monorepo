@@ -25,7 +25,7 @@ type UnalignedGnarkData struct {
 	IsPublicKey         ifaces.Column
 	GnarkIndex          ifaces.Column
 	GnarkPublicKeyIndex ifaces.Column
-	GnarkData           [nbLimbColumns]ifaces.Column
+	GnarkData           [common.NbLimbU128]ifaces.Column
 
 	// auxiliary columns
 	isIndex0     ifaces.Column
@@ -50,9 +50,9 @@ type unalignedGnarkDataSource struct {
 	IsFetching ifaces.Column
 	IsData     ifaces.Column
 	IsRes      ifaces.Column
-	Limb       [nbLimbColumns]ifaces.Column
+	Limb       [common.NbLimbU128]ifaces.Column
 	SuccessBit ifaces.Column
-	TxHash     [nbTxHashCols]ifaces.Column
+	TxHash     [common.NbLimbU256]ifaces.Column
 }
 
 // TxSignatureGetter is a function that is expected a signature for a transaction
@@ -73,7 +73,7 @@ func newUnalignedGnarkData(comp *wizard.CompiledIOP, size int, src *unalignedGna
 		size: size,
 	}
 
-	for i := 0; i < nbLimbColumns; i++ {
+	for i := 0; i < common.NbLimbU128; i++ {
 		res.GnarkData[i] = createCol(fmt.Sprintf("GNARK_DATA_%d", i))
 	}
 
@@ -111,11 +111,11 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 		sourceIsActive   = run.GetColumn(src.IsActive.GetColID())
 		sourceSuccessBit = run.GetColumn(src.SuccessBit.GetColID())
 
-		sourceLimb   [nbLimbColumns]ifaces.ColAssignment
-		sourceTxHash [nbTxHashCols]ifaces.ColAssignment
+		sourceLimb   [common.NbLimbU128]ifaces.ColAssignment
+		sourceTxHash [common.NbLimbU256]ifaces.ColAssignment
 	)
 
-	for i := 0; i < nbLimbColumns; i++ {
+	for i := 0; i < common.NbLimbU128; i++ {
 		sourceLimb[i] = run.GetColumn(src.Limb[i].GetColID())
 
 		if sourceLimb[i].Len() != d.size {
@@ -123,7 +123,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 		}
 	}
 
-	for i := 0; i < nbTxHashCols; i++ {
+	for i := 0; i < common.NbLimbU256; i++ {
 		sourceTxHash[i] = run.GetColumn(src.TxHash[i].GetColID())
 
 		if sourceTxHash[i].Len() != d.size {
@@ -136,7 +136,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 	}
 
 	var resIsPublicKey, resGnarkIndex, resGnarkPkIndex []field.Element
-	var resGnarkData [nbLimbColumns][]field.Element
+	var resGnarkData [common.NbLimbU128][]field.Element
 	var txCount = 0
 
 	for i := 0; i < d.size; {
@@ -144,7 +144,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 		var (
 			isActive         = sourceIsActive.Get(i)
 			source           = sourceSource.Get(i)
-			rows             = make([]field.Element, nbRowsPerGnarkPushing*nbLimbColumns)
+			rows             = make([]field.Element, nbRowsPerGnarkPushing*common.NbLimbU128)
 			buf              [32]byte
 			prehashedMsg     [32]byte
 			r, s, v          = new(big.Int), new(big.Int), new(big.Int)
@@ -156,15 +156,15 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			// we copy the data from ecrecover
 			prependZeroCount = nbRowsPerEcRecFetching
 
-			var successBitLimbs [nbLimbColumns]field.Element
-			successBitLimbs[nbLimbColumns-1] = sourceSuccessBit.Get(i)
+			var successBitLimbs [common.NbLimbU128]field.Element
+			successBitLimbs[common.NbLimbU128-1] = sourceSuccessBit.Get(i)
 
 			for j, limb := range successBitLimbs {
 				rows[96+j] = limb
 			}
 
-			var oneLimbs [nbLimbColumns]field.Element
-			oneLimbs[nbLimbColumns-1] = field.NewElement(1)
+			var oneLimbs [common.NbLimbU128]field.Element
+			oneLimbs[common.NbLimbU128-1] = field.NewElement(1)
 
 			for j, limb := range oneLimbs {
 				rows[104+j] = limb
@@ -172,8 +172,8 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 
 			// copy h0, h1, r0, r1, s0, s1, v0, v1
 			for j := 0; j < 8; j++ {
-				for k := 0; k < nbLimbColumns; k++ {
-					rows[32+j*nbLimbColumns+k] = sourceLimb[k].Get(i + j)
+				for k := 0; k < common.NbLimbU128; k++ {
+					rows[32+j*common.NbLimbU128+k] = sourceLimb[k].Get(i + j)
 				}
 			}
 
@@ -214,19 +214,19 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			// we copy the data from the transcation
 			prependZeroCount = nbRowsPerTxSignFetching
 
-			var successBitLimbs [nbLimbColumns]field.Element
-			successBitLimbs[nbLimbColumns-1] = field.NewElement(1) // always succeeds, we only include valid transactions
+			var successBitLimbs [common.NbLimbU128]field.Element
+			successBitLimbs[common.NbLimbU128-1] = field.NewElement(1) // always succeeds, we only include valid transactions
 
 			for j, limb := range successBitLimbs {
 				rows[96+j] = limb
 			}
 
-			var zeroLimbs [nbLimbColumns]field.Element
+			var zeroLimbs [common.NbLimbU128]field.Element
 			for j, limb := range zeroLimbs {
 				rows[104+j] = limb
 			}
 
-			for j := 0; j < nbTxHashCols; j++ {
+			for j := 0; j < common.NbLimbU256; j++ {
 				rows[32+j] = sourceTxHash[j].Get(i)
 			}
 
@@ -309,13 +309,13 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			resGnarkIndex = append(resGnarkIndex, field.NewElement(uint64(i)))
 		}
 
-		for j := 0; j < nbLimbColumns; j++ {
+		for j := 0; j < common.NbLimbU128; j++ {
 			resGnarkData[j] = append(resGnarkData[j], make([]field.Element, prependZeroCount)...)
 		}
 
 		// Assign limb elements column by column
-		for j := 0; j < nbRowsPerGnarkPushing*nbLimbColumns; j++ {
-			resGnarkData[j%nbLimbColumns] = append(resGnarkData[j%nbLimbColumns], rows[j])
+		for j := 0; j < nbRowsPerGnarkPushing*common.NbLimbU128; j++ {
+			resGnarkData[j%common.NbLimbU128] = append(resGnarkData[j%common.NbLimbU128], rows[j])
 		}
 	}
 	// pad the vectors to the full size. It is expected in the hashing module
@@ -329,7 +329,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 	run.AssignColumn(d.GnarkIndex.GetColID(), smartvectors.RightZeroPadded(resGnarkIndex, d.size))
 	run.AssignColumn(d.GnarkPublicKeyIndex.GetColID(), smartvectors.RightZeroPadded(resGnarkPkIndex, d.size))
 
-	for j := 0; j < nbLimbColumns; j++ {
+	for j := 0; j < common.NbLimbU128; j++ {
 		resGnarkData[j] = append(resGnarkData[j], make([]field.Element, d.size-len(resGnarkData[j]))...)
 		run.AssignColumn(d.GnarkData[j].GetColID(), smartvectors.RightZeroPadded(resGnarkData[j], d.size))
 	}
@@ -450,7 +450,7 @@ func (d *UnalignedGnarkData) csProjectionEcRecover(comp *wizard.CompiledIOP, src
 
 func (d *UnalignedGnarkData) csTxHash(comp *wizard.CompiledIOP, src *unalignedGnarkDataSource) {
 	// that we have projected correctly txHashHi and txHashLo
-	for i := 0; i < nbLimbColumns; i++ {
+	for i := 0; i < common.NbLimbU128; i++ {
 		comp.InsertGlobal(
 			ROUND_NR,
 			ifaces.QueryIDf("%v_%v_%d", NAME_UNALIGNED_GNARKDATA, "TXHASH_HI", i),
@@ -460,7 +460,7 @@ func (d *UnalignedGnarkData) csTxHash(comp *wizard.CompiledIOP, src *unalignedGn
 		comp.InsertGlobal(
 			ROUND_NR,
 			ifaces.QueryIDf("%v_%v_%d", NAME_UNALIGNED_GNARKDATA, "TXHASH_LO", i),
-			sym.Mul(d.isIndex5, src.Source, sym.Sub(d.GnarkData[i], src.TxHash[i+nbLimbColumns])),
+			sym.Mul(d.isIndex5, src.Source, sym.Sub(d.GnarkData[i], src.TxHash[i+common.NbLimbU128])),
 		)
 	}
 }
@@ -473,7 +473,7 @@ func (d *UnalignedGnarkData) csTxEcRecoverBit(comp *wizard.CompiledIOP, src *una
 	// additionally, we do not have to binary constrain as it is already
 	// enforced inside gnark circuit
 
-	for i := 0; i < nbLimbColumns; i++ {
+	for i := 0; i < common.NbLimbU128; i++ {
 		comp.InsertGlobal(
 			ROUND_NR,
 			ifaces.QueryIDf("%v_%v_%d", NAME_UNALIGNED_GNARKDATA, "ECRECOVERBIT", i),
