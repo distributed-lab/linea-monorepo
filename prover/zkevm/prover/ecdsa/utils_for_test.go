@@ -78,12 +78,12 @@ func AssignEcRecTxnData(
 			isEcRecRes[i*nbRowsPerEcRec+offSetEcRec] = field.One()
 			isEcRecRes[i*nbRowsPerEcRec+offSetEcRec+1] = field.One()
 
-			ecRecHiLimbs := common.DivideBytes(hashRes[halfDigest-trimmingSize : halfDigest])
+			ecRecHiLimbs := common.DivideBytes(hashRes[addressTrimmedBytes:halfDigest])
 			ecRecLoLimbs := common.DivideBytes(hashRes[halfDigest:])
 
 			for j := 0; j < common.NbLimbU128; j++ {
-				if j >= common.NbLimbU128-2 {
-					ecRecLimb[j][i*nbRowsPerEcRec+offSetEcRec].SetBytes(ecRecHiLimbs[j-(common.NbLimbU128-2)])
+				if j >= addressTrimmedColumns {
+					ecRecLimb[j][i*nbRowsPerEcRec+offSetEcRec].SetBytes(ecRecHiLimbs[j-addressTrimmedColumns])
 				}
 
 				ecRecLimb[j][i*nbRowsPerEcRec+offSetEcRec+1].SetBytes(ecRecLoLimbs[j])

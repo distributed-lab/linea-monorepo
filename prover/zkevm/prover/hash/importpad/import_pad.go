@@ -4,6 +4,7 @@ import (
 	"github.com/consensys/linea-monorepo/prover/maths/field"
 	"github.com/consensys/linea-monorepo/prover/protocol/column"
 	"github.com/consensys/linea-monorepo/prover/protocol/dedicated"
+	"github.com/consensys/linea-monorepo/prover/protocol/dedicated/projection"
 	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
 	sym "github.com/consensys/linea-monorepo/prover/symbolic"
@@ -183,14 +184,14 @@ func ImportAndPad(comp *wizard.CompiledIOP, inp ImportAndPadInputs, numRows int)
 		res.IsPadded,
 	)
 
-	//projection.InsertProjection(
-	//	comp,
-	//	ifaces.QueryIDf("%v_IMPORT_PAD_PROJECTION", inp.Name),
-	//	append(inp.Src.Data.Limbs, inp.Src.Data.HashNum, inp.Src.Data.NBytes, inp.Src.Data.Index),
-	//	[]ifaces.Column{res.Limbs, res.HashNum, res.NBytes, res.Index},
-	//	inp.Src.Data.ToHash,
-	//	res.IsInserted,
-	//)
+	projection.InsertProjection(
+		comp,
+		ifaces.QueryIDf("%v_IMPORT_PAD_PROJECTION", inp.Name),
+		append(inp.Src.Data.Limbs, inp.Src.Data.HashNum, inp.Src.Data.NBytes, inp.Src.Data.Index),
+		[]ifaces.Column{res.Limbs, res.HashNum, res.NBytes, res.Index},
+		inp.Src.Data.ToHash,
+		res.IsInserted,
+	)
 
 	return res
 }

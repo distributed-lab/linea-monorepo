@@ -18,6 +18,17 @@ import (
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/hash/generic"
 )
 
+const (
+	// addressHiBytes is the size of the leftover from trimmed addressHi part (in bytes).
+	addressHiBytes = 4
+	// addressHiColumns is the number of addressHi columns.
+	addressHiColumns = addressHiBytes / common.LimbSize
+	// addressTrimmedBytes size of the trimmed address part (in bytes).
+	addressTrimmedBytes = common.NbLimbU256 - addressHiBytes
+	// addressTrimmedColumns number of columns that represent the trimmed address part.
+	addressTrimmedColumns = addressTrimmedBytes / common.LimbSize
+)
+
 // Address submodule is responsible for the columns holding the address of the sender,
 // and checking their consistency with the claimed public key
 // (since address is the truncated hash of public key).
@@ -46,9 +57,6 @@ type Addresses struct {
 	// providers for keccak, Providers contain the inputs and outputs of keccak hash.
 	provider generic.GenericByteModule
 }
-
-// AddressHi is the trimming of HashHi, taking its last 4bytes.
-const trimmingSize = 4
 
 // newAddress creates an Address struct, declaring native columns and the constraints among them.
 func newAddress(comp *wizard.CompiledIOP, size int, ecRec *EcRecover, ac *antichamber, td *txnData) *Addresses {
@@ -95,7 +103,7 @@ func newAddress(comp *wizard.CompiledIOP, size int, ecRec *EcRecover, ac *antich
 		addr.hashNum,
 	)
 
-	// check the trimming of hashHi limb columns to the addressHi limb columns
+	// check the trimming of address limb columns to addressUntrimmed limb columns
 	addr.csAddressTrimming(comp)
 
 	// check that IsAddressHiEcRec is well-formed
@@ -105,19 +113,19 @@ func newAddress(comp *wizard.CompiledIOP, size int, ecRec *EcRecover, ac *antich
 	// ecdata is already projected over our ecRecover. Thus, we only project from our ecrecover.
 
 	// Check that first 6 elements (trimmed 12 bytes) of address higher part are all 0
-	for i := 0; i < 6; i++ {
+	for i := 0; i < addressTrimmedColumns; i++ {
 		comp.InsertGlobal(0, ifaces.QueryIDf("Trimmed_Bytes_Zeros_%d", i),
 			sym.Mul(addr.isAddressHiEcRec, addr.isAddressFromEcRec, ecRec.Limb[i]),
 		)
 	}
 
 	projection.InsertProjection(comp, ifaces.QueryIDf("Project_AddressHi_EcRec"),
-		ecRec.Limb[6:], addr.address[:2],
+		ecRec.Limb[addressTrimmedColumns:], addr.address[:addressHiColumns],
 		addr.isAddressHiEcRec, addr.isAddressFromEcRec,
 	)
 
 	projection.InsertProjection(comp, ifaces.QueryIDf("Project_AddressLo_EcRe"),
-		ecRec.Limb[:], addr.address[2:],
+		ecRec.Limb[:], addr.address[addressHiColumns:],
 		column.Shift(addr.isAddressHiEcRec, -1), addr.isAddressFromEcRec,
 	)
 
@@ -159,7 +167,7 @@ func (addr *Addresses) csIsAddressHiEcRec(comp *wizard.CompiledIOP, ecRec *EcRec
 // The constraints for trimming the addressUntrimmed to address
 func (addr *Addresses) csAddressTrimming(comp *wizard.CompiledIOP) {
 	for i := 0; i < common.NbLimbEthAddress; i++ {
-		comp.InsertGlobal(0, ifaces.QueryIDf("Address_Trimming_%d", i), sym.Sub(addr.address[i], addr.addressUntrimmed[i+6]))
+		comp.InsertGlobal(0, ifaces.QueryIDf("Address_Trimming_%d", i), sym.Sub(addr.address[i], addr.addressUntrimmed[i+addressTrimmedColumns]))
 	}
 }
 
@@ -184,8 +192,8 @@ func (addr *Addresses) buildGenericModule(id ifaces.Column, uaGnark *UnalignedGn
 	}
 
 	pkModule.Info = generic.GenInfoModule{
-		HashHi:   addr.address[:2],
-		HashLo:   addr.address[2:],
+		HashHi:   addr.address[:addressHiColumns],
+		HashLo:   addr.address[addressHiColumns:],
 		IsHashHi: addr.isAddress,
 		IsHashLo: addr.isAddress,
 	}
@@ -258,9 +266,9 @@ func (addr *Addresses) assignMainColumns(
 			n = nbRowsPerTxSign
 		}
 
+		// Initialize limb values for each column of addressUntrimmed
 		addressUntrimmed := common.DivideBytes(digest[:])
 		for j, limb := range addressUntrimmed {
-			// Initialize limb values for each column of addressUntrimmed
 			var element field.Element
 			element.SetBytes(limb[:])
 
@@ -268,9 +276,9 @@ func (addr *Addresses) assignMainColumns(
 			addressUntrimmedColumns[j] = append(addressUntrimmedColumns[j], repeat...)
 		}
 
-		address := common.DivideBytes(digest[halfDigest-trimmingSize:])
+		// Initialize limb values for each column of address
+		address := common.DivideBytes(digest[addressTrimmedBytes:])
 		for j, limb := range address {
-			// Initialize limb values for each column of address
 			var element field.Element
 			element.SetBytes(limb[:])
 
