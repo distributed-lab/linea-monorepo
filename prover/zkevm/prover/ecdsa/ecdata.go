@@ -8,6 +8,7 @@ import (
 	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
 	sym "github.com/consensys/linea-monorepo/prover/symbolic"
+	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 	commoncs "github.com/consensys/linea-monorepo/prover/zkevm/prover/common/common_constraints"
 )
 
@@ -17,15 +18,13 @@ var (
 )
 
 const (
-	nbLimbColumns = 8
-
 	NB_ECRECOVER_INPUTS = 24
 	NB_TX_INPUTS        = 15
 )
 
 type EcRecover struct {
 	EcRecoverID     ifaces.Column
-	Limb            [nbLimbColumns]ifaces.Column
+	Limb            [common.NbLimbU128]ifaces.Column
 	SuccessBit      ifaces.Column
 	EcRecoverIndex  ifaces.Column
 	EcRecoverIsData ifaces.Column
@@ -40,7 +39,7 @@ type EcRecover struct {
 type ecDataSource struct {
 	CsEcrecover ifaces.Column
 	ID          ifaces.Column
-	Limb        [nbLimbColumns]ifaces.Column
+	Limb        [common.NbLimbU128]ifaces.Column
 	SuccessBit  ifaces.Column
 	Index       ifaces.Column
 	IsData      ifaces.Column
@@ -82,7 +81,7 @@ func newEcRecover(comp *wizard.CompiledIOP, limits *Settings, src *ecDataSource)
 		Settings: limits,
 	}
 
-	for i := 0; i < nbLimbColumns; i++ {
+	for i := 0; i < common.NbLimbU128; i++ {
 		res.Limb[i] = createCol(fmt.Sprintf("LIMB_%d", i))
 	}
 
@@ -99,7 +98,7 @@ func (ec *EcRecover) Assign(run *wizard.ProverRuntime, src *ecDataSource) {
 func (ec *EcRecover) assignFromEcDataSource(run *wizard.ProverRuntime, src *ecDataSource) {
 
 	var (
-		sourceLimb [nbLimbColumns]ifaces.ColAssignment
+		sourceLimb [common.NbLimbU128]ifaces.ColAssignment
 
 		nbInstances       = src.nbActualInstances(run)
 		currRow           = int(0)
@@ -114,7 +113,7 @@ func (ec *EcRecover) assignFromEcDataSource(run *wizard.ProverRuntime, src *ecDa
 		resEcRecoverIsData, resEcRecoverIsRes, resAuxProjectionMask []field.Element
 	)
 
-	for i := 0; i < nbLimbColumns; i++ {
+	for i := 0; i < common.NbLimbU128; i++ {
 		sourceLimb[i] = run.GetColumn(src.Limb[i].GetColID())
 
 		if sourceID.Len() != sourceLimb[i].Len() ||
@@ -130,7 +129,7 @@ func (ec *EcRecover) assignFromEcDataSource(run *wizard.ProverRuntime, src *ecDa
 		panic("all source columns must have the same length")
 	}
 
-	var resElements [nbLimbColumns][]field.Element
+	var resElements [common.NbLimbU128][]field.Element
 	for i := 0; i < nbInstances; i++ {
 
 		var (
@@ -146,12 +145,12 @@ func (ec *EcRecover) assignFromEcDataSource(run *wizard.ProverRuntime, src *ecDa
 			}
 		}
 
-		var colElements [nbLimbColumns][nbRowsPerEcRec]field.Element
+		var colElements [common.NbLimbU128][nbRowsPerEcRec]field.Element
 		for j := 0; j < nbRowsPerEcRecFetching; j++ {
 			sourceIdx := currRow + j
 			rowEcRecoverID[j] = sourceID.Get(sourceIdx)
 
-			for k := 0; k < nbLimbColumns; k++ {
+			for k := 0; k < common.NbLimbU128; k++ {
 				colElements[k][j] = sourceLimb[k].Get(sourceIdx)
 			}
 
@@ -168,7 +167,7 @@ func (ec *EcRecover) assignFromEcDataSource(run *wizard.ProverRuntime, src *ecDa
 
 		resEcRecoverID = append(resEcRecoverID, rowEcRecoverID[:]...)
 
-		for j := 0; j < nbLimbColumns; j++ {
+		for j := 0; j < common.NbLimbU128; j++ {
 			resElements[j] = append(resElements[j], colElements[j][:]...)
 		}
 
@@ -183,7 +182,7 @@ func (ec *EcRecover) assignFromEcDataSource(run *wizard.ProverRuntime, src *ecDa
 	size := ec.Settings.sizeAntichamber()
 	run.AssignColumn(ec.EcRecoverID.GetColID(), smartvectors.RightZeroPadded(resEcRecoverID, size))
 
-	for i := 0; i < nbLimbColumns; i++ {
+	for i := 0; i < common.NbLimbU128; i++ {
 		run.AssignColumn(ec.Limb[i].GetColID(), smartvectors.RightZeroPadded(resElements[i], size))
 	}
 

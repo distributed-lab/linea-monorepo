@@ -19,7 +19,7 @@ func commitEcRecTxnData(comp *wizard.CompiledIOP, size1 int, size int, ac *antic
 		ct: comp.InsertCommit(0, ifaces.ColIDf("txn_data.CT"), size1),
 	}
 
-	for i := 0; i < txnDataFromColsNumber; i++ {
+	for i := 0; i < common.NbLimbU256; i++ {
 		td.from[i] = comp.InsertCommit(0, ifaces.ColID(fmt.Sprintf("txndata.From_%d", i)), size1)
 	}
 
@@ -27,7 +27,7 @@ func commitEcRecTxnData(comp *wizard.CompiledIOP, size1 int, size int, ac *antic
 		EcRecoverIsRes: comp.InsertCommit(0, ifaces.ColIDf("ECRECOVER_ISRES"), size),
 	}
 
-	for i := 0; i < nbLimbColumns; i++ {
+	for i := 0; i < common.NbLimbU128; i++ {
 		ecRec.Limb[i] = comp.InsertCommit(0, ifaces.ColIDf("ECRECOVER_LIMB_%d", i), size)
 	}
 
@@ -48,7 +48,7 @@ func AssignEcRecTxnData(
 
 	// now assign ecRecover.Limb and txn_data.From from the permutation trace.
 	isEcRecRes := make([]field.Element, nbEcRec*nbRowsPerEcRec)
-	ecRecLimb := make([][]field.Element, nbLimbColumns)
+	ecRecLimb := make([][]field.Element, common.NbLimbU128)
 	for i := range ecRecLimb {
 		ecRecLimb[i] = make([]field.Element, nbEcRec*nbRowsPerEcRec)
 	}
@@ -62,8 +62,8 @@ func AssignEcRecTxnData(
 	}
 
 	// Initialize an array of from limbs columns
-	from := make([][]field.Element, 0, txnDataFromColsNumber)
-	for i := 0; i < txnDataFromColsNumber; i++ {
+	from := make([][]field.Element, 0, common.NbLimbU256)
+	for i := 0; i < common.NbLimbU256; i++ {
 		from = append(from, make([]field.Element, nbTxS*nbRowsPerTxInTxnData))
 	}
 
@@ -81,9 +81,9 @@ func AssignEcRecTxnData(
 			ecRecHiLimbs := common.DivideBytes(hashRes[halfDigest-trimmingSize : halfDigest])
 			ecRecLoLimbs := common.DivideBytes(hashRes[halfDigest:])
 
-			for j := 0; j < nbLimbColumns; j++ {
-				if j >= nbLimbColumns-2 {
-					ecRecLimb[j][i*nbRowsPerEcRec+offSetEcRec].SetBytes(ecRecHiLimbs[j-(nbLimbColumns-2)])
+			for j := 0; j < common.NbLimbU128; j++ {
+				if j >= common.NbLimbU128-2 {
+					ecRecLimb[j][i*nbRowsPerEcRec+offSetEcRec].SetBytes(ecRecHiLimbs[j-(common.NbLimbU128-2)])
 				}
 
 				ecRecLimb[j][i*nbRowsPerEcRec+offSetEcRec+1].SetBytes(ecRecLoLimbs[j])
@@ -103,12 +103,12 @@ func AssignEcRecTxnData(
 
 	run.AssignColumn(ecRec.EcRecoverIsRes.GetColID(), smartvectors.RightZeroPadded(isEcRecRes, size))
 
-	for i := 0; i < nbLimbColumns; i++ {
+	for i := 0; i < common.NbLimbU128; i++ {
 		run.AssignColumn(ecRec.Limb[i].GetColID(), smartvectors.RightZeroPadded(ecRecLimb[i], size))
 	}
 
 	// they are arithmetization columns, so LeftZeroPad
-	for i := 0; i < txnDataFromColsNumber; i++ {
+	for i := 0; i < common.NbLimbU256; i++ {
 		run.AssignColumn(td.from[i].GetColID(), smartvectors.LeftZeroPadded(from[i], sizeTxnData))
 	}
 
@@ -165,8 +165,8 @@ func (td *txnData) assignTxnDataFromPK(
 	}
 
 	// populate the columns FromHi and FromLo
-	from := make([][]field.Element, 0, txnDataFromColsNumber)
-	for i := 0; i < txnDataFromColsNumber; i++ {
+	from := make([][]field.Element, 0, common.NbLimbU256)
+	for i := 0; i < common.NbLimbU256; i++ {
 		from = append(from, make([]field.Element, maxNbTx*nbRowsPerTxInTxnData))
 	}
 
@@ -180,7 +180,7 @@ func (td *txnData) assignTxnDataFromPK(
 	}
 
 	// these are arithmetization columns, so LeftZeroPad
-	for i := 0; i < txnDataFromColsNumber; i++ {
+	for i := 0; i < common.NbLimbU256; i++ {
 		run.AssignColumn(td.from[i].GetColID(), smartvectors.LeftZeroPadded(from[i], ac.Inputs.settings.sizeTxnData(nbRowsPerTxInTxnData)))
 	}
 
@@ -195,7 +195,7 @@ func commitTxnData(comp *wizard.CompiledIOP, limits *Settings, nbRowsPerTxInTxnD
 		ct: comp.InsertCommit(0, ifaces.ColIDf("txn_data.CT"), size),
 	}
 
-	for i := 0; i < txnDataFromColsNumber; i++ {
+	for i := 0; i < common.NbLimbU256; i++ {
 		td.from[i] = comp.InsertCommit(0, ifaces.ColIDf("txn_data.From_%d", i), size)
 	}
 

@@ -15,9 +15,6 @@ import (
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/hash/generic"
 )
 
-// nbTxHashCols is the number of TxHash limb columns.
-const nbTxHashCols = 16
-
 // TxSignature is responsible for assigning the relevant columns for transaction-Hash,
 // and checking their consistency with the data coming from rlp_txn.
 //
@@ -26,7 +23,7 @@ const nbTxHashCols = 16
 // columns for rlp-txn lives on the arithmetization side.
 type txSignature struct {
 	Inputs   *txSignatureInputs
-	txHash   [nbTxHashCols]ifaces.Column
+	txHash   [common.NbLimbU256]ifaces.Column
 	isTxHash ifaces.Column
 
 	// provider for keccak, Provider contains the inputs and outputs of keccak hash.
@@ -46,7 +43,7 @@ func newTxSignatures(comp *wizard.CompiledIOP, inp txSignatureInputs) *txSignatu
 		Inputs:   &inp,
 	}
 
-	for i := 0; i < nbTxHashCols; i++ {
+	for i := 0; i < common.NbLimbU256; i++ {
 		res.txHash[i] = createCol(fmt.Sprintf("TX_HASH_%d", i))
 	}
 
@@ -60,7 +57,7 @@ func newTxSignatures(comp *wizard.CompiledIOP, inp txSignatureInputs) *txSignatu
 	)
 
 	// txHashHi remains the same between two fetchings.
-	for i := 0; i < nbTxHashCols; i++ {
+	for i := 0; i < common.NbLimbU256; i++ {
 		comp.InsertGlobal(0, ifaces.QueryIDf("txHash_REMAIN_SAME_%d", i),
 			sym.Mul(inp.ac.IsActive,
 				sym.Sub(1, inp.ac.IsFetching),
@@ -108,10 +105,10 @@ func (txn *txSignature) assignTxSignature(run *wizard.ProverRuntime, nbActualEcR
 		size        = txn.Inputs.ac.size
 		permTrace   = keccak.GenerateTrace(txn.Inputs.RlpTxn.ScanStreams(run))
 
-		hashColumns [nbTxHashCols][]field.Element
+		hashColumns [common.NbLimbU256][]field.Element
 	)
 
-	for i := 0; i < nbTxHashCols; i++ {
+	for i := 0; i < common.NbLimbU256; i++ {
 		hashColumns[i] = vector.Repeat(field.Zero(), n)
 	}
 
@@ -132,7 +129,7 @@ func (txn *txSignature) assignTxSignature(run *wizard.ProverRuntime, nbActualEcR
 		isTxHash = append(isTxHash, repeatIsTxHash...)
 	}
 
-	for i := 0; i < nbTxHashCols; i++ {
+	for i := 0; i < common.NbLimbU256; i++ {
 		run.AssignColumn(txn.txHash[i].GetColID(), smartvectors.RightZeroPadded(hashColumns[i], size))
 	}
 

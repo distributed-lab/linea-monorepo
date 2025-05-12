@@ -2,6 +2,7 @@ package ecdsa
 
 import (
 	"fmt"
+	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 	"os"
 	"testing"
 
@@ -33,11 +34,11 @@ func TestUnalignedGnarkDataAssign(t *testing.T) {
 			IsRes:      ct.GetCommit(build, "IS_RES"),
 		}
 
-		for i := 0; i < nbLimbColumns; i++ {
+		for i := 0; i < common.NbLimbU128; i++ {
 			uagSrc.Limb[i] = ct.GetCommit(build, fmt.Sprintf("LIMB_%d", i))
 		}
 
-		for i := 0; i < nbTxHashCols; i++ {
+		for i := 0; i < common.NbLimbU256; i++ {
 			uagSrc.TxHash[i] = ct.GetCommit(build, fmt.Sprintf("TX_HASH_%d", i))
 		}
 
@@ -45,12 +46,12 @@ func TestUnalignedGnarkDataAssign(t *testing.T) {
 	}, dummy.Compile)
 	proof := wizard.Prove(cmp, func(run *wizard.ProverRuntime) {
 		var names = []string{"SOURCE", "IS_ACTIVE", "IS_PUSHING", "IS_FETCHING"}
-		for i := 0; i < nbLimbColumns; i++ {
+		for i := 0; i < common.NbLimbU128; i++ {
 			names = append(names, fmt.Sprintf("LIMB_%d", i))
 		}
 
 		names = append(names, "SUCCESS_BIT", "IS_DATA", "IS_RES")
-		for i := 0; i < nbTxHashCols; i++ {
+		for i := 0; i < common.NbLimbU256; i++ {
 			names = append(names, fmt.Sprintf("TX_HASH_%d", i))
 		}
 
@@ -59,7 +60,7 @@ func TestUnalignedGnarkDataAssign(t *testing.T) {
 
 		assignementNames := []string{string(uag.IsPublicKey.GetColID()), string(uag.GnarkIndex.GetColID())}
 
-		for i := 0; i < nbLimbColumns; i++ {
+		for i := 0; i < common.NbLimbU128; i++ {
 			assignementNames = append(assignementNames, string(uag.GnarkData[i].GetColID()))
 		}
 
