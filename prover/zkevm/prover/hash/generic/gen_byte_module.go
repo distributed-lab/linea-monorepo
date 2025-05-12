@@ -5,15 +5,14 @@ import (
 	"github.com/consensys/linea-monorepo/prover/maths/field"
 	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
+	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 )
 
 const (
-	// totalLimbSize is the total size of a limb in bytes.
-	totalLimbSize = 2
 	// nbUnusedBytes is the number of unused bytes in of the limb
 	// represented by the field element. The field element is 32 bytes
 	// long, and the limb is 16 bytes long, so 16 bytes are unused.
-	nbUnusedBytes = field.Bytes - totalLimbSize
+	nbUnusedBytes = field.Bytes - common.LimbSize
 )
 
 // GenericByteModule encodes the limbs with a left alignment approach as
@@ -51,12 +50,11 @@ type GenInfoModule struct {
 func (gdm *GenDataModule) ScanStreams(run *wizard.ProverRuntime) [][]byte {
 
 	var (
-		numRow  = gdm.Limbs[0].Size()
-		numСols = uint64(len(gdm.Limbs))
-		index   = gdm.Index.GetColAssignment(run).IntoRegVecSaveAlloc()
-		toHash  = gdm.ToHash.GetColAssignment(run).IntoRegVecSaveAlloc()
-		hashNum = gdm.HashNum.GetColAssignment(run).IntoRegVecSaveAlloc()
-		//nByte       = gdm.NBytes.GetColAssignment(run).IntoRegVecSaveAlloc()
+		numRow      = gdm.Limbs[0].Size()
+		numСols     = uint64(len(gdm.Limbs))
+		index       = gdm.Index.GetColAssignment(run).IntoRegVecSaveAlloc()
+		toHash      = gdm.ToHash.GetColAssignment(run).IntoRegVecSaveAlloc()
+		hashNum     = gdm.HashNum.GetColAssignment(run).IntoRegVecSaveAlloc()
 		streams     = [][]byte(nil)
 		buffer      = &bytes.Buffer{}
 		currHashNum field.Element
@@ -90,7 +88,7 @@ func (gdm *GenDataModule) ScanStreams(run *wizard.ProverRuntime) [][]byte {
 				continue
 			}
 
-			buffer.Write(currLimb[nbUnusedBytes : nbUnusedBytes+totalLimbSize])
+			buffer.Write(currLimb[nbUnusedBytes : nbUnusedBytes+common.LimbSize])
 		}
 	}
 
