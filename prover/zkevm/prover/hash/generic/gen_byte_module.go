@@ -9,10 +9,12 @@ import (
 )
 
 const (
+	// totalLimbSize is the total size of a limb in bytes.
+	totalLimbSize = 16
 	// nbUnusedBytes is the number of unused bytes in of the limb
 	// represented by the field element. The field element is 32 bytes
 	// long, and the limb is 16 bytes long, so 16 bytes are unused.
-	nbUnusedBytes = field.Bytes - common.LimbSize
+	nbUnusedBytes = field.Bytes - common.LimbBytes
 )
 
 // GenericByteModule encodes the limbs with a left alignment approach as
@@ -55,14 +57,13 @@ func (gdm *GenDataModule) ScanStreams(run *wizard.ProverRuntime) [][]byte {
 		index       = gdm.Index.GetColAssignment(run).IntoRegVecSaveAlloc()
 		toHash      = gdm.ToHash.GetColAssignment(run).IntoRegVecSaveAlloc()
 		hashNum     = gdm.HashNum.GetColAssignment(run).IntoRegVecSaveAlloc()
+		nByte       = gdm.NBytes.GetColAssignment(run).IntoRegVecSaveAlloc()
 		streams     = [][]byte(nil)
 		buffer      = &bytes.Buffer{}
 		currHashNum field.Element
-
-		// Used for checking empty limbs
-		zeroArray = [32]byte{}
 	)
 
+	maxNbBytesPerLimb := (totalLimbSize + numСols - 1) / numСols
 	limbs := make([][]field.Element, numСols)
 	for i := uint64(0); i < numСols; i++ {
 		limbs[i] = gdm.Limbs[i].GetColAssignment(run).IntoRegVecSaveAlloc()
@@ -82,17 +83,21 @@ func (gdm *GenDataModule) ScanStreams(run *wizard.ProverRuntime) [][]byte {
 			currHashNum = hashNum[row]
 		}
 
+		currNbBytes := nByte[row].Uint64()
 		for col := uint64(0); col < numСols; col++ {
 			currLimb := limbs[col][row].Bytes()
-			if bytes.Equal(currLimb[:], zeroArray[:]) {
+
+			if (col+1)*maxNbBytesPerLimb <= currNbBytes {
+				buffer.Write(currLimb[nbUnusedBytes : nbUnusedBytes+maxNbBytesPerLimb])
 				continue
 			}
 
-			buffer.Write(currLimb[nbUnusedBytes : nbUnusedBytes+common.LimbSize])
+			nonZeroBytes := currNbBytes % maxNbBytesPerLimb
+			buffer.Write(currLimb[nbUnusedBytes : nbUnusedBytes+nonZeroBytes])
+			break
 		}
 	}
 
 	streams = append(streams, buffer.Bytes())
-
 	return streams
 }
