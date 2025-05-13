@@ -9,7 +9,6 @@ import (
 	"github.com/consensys/linea-monorepo/prover/protocol/column"
 	"github.com/consensys/linea-monorepo/prover/protocol/dedicated"
 	"github.com/consensys/linea-monorepo/prover/protocol/dedicated/projection"
-	//"github.com/consensys/linea-monorepo/prover/protocol/dedicated/projection"
 	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
 	sym "github.com/consensys/linea-monorepo/prover/symbolic"
@@ -22,11 +21,11 @@ const (
 	// addressHiBytes is the size of the leftover from trimmed addressHi part (in bytes).
 	addressHiBytes = 4
 	// addressHiColumns is the number of addressHi columns.
-	addressHiColumns = addressHiBytes / common.LimbSize
+	addressHiColumns = addressHiBytes / common.LimbBytes
 	// addressTrimmedBytes size of the trimmed address part (in bytes).
 	addressTrimmedBytes = common.NbLimbU256 - addressHiBytes
 	// addressTrimmedColumns number of columns that represent the trimmed address part.
-	addressTrimmedColumns = addressTrimmedBytes / common.LimbSize
+	addressTrimmedColumns = addressTrimmedBytes / common.LimbBytes
 )
 
 // Address submodule is responsible for the columns holding the address of the sender,
