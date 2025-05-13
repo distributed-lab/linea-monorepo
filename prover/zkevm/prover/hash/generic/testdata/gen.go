@@ -26,8 +26,8 @@ func GenerateAndAssignGenDataModule(run *wizard.ProverRuntime, gdm *generic.GenD
 		index   = make([]field.Element, size)
 		hashNum = make([]field.Element, size)
 
-		limbs    [common.NbLimbU256][]field.Element
-		limbCols [common.NbLimbU256]*common.VectorBuilder
+		limbs    [common.NbLimbU128][]field.Element
+		limbCols [common.NbLimbU128]*common.VectorBuilder
 
 		rng = rand.New(rand.NewChaCha8([32]byte{}))
 
@@ -37,7 +37,7 @@ func GenerateAndAssignGenDataModule(run *wizard.ProverRuntime, gdm *generic.GenD
 		indexCol   = common.NewVectorBuilder(gdm.Index)
 	)
 
-	for i := 0; i < common.NbLimbU256; i++ {
+	for i := 0; i < common.NbLimbU128; i++ {
 		limbCols[i] = common.NewVectorBuilder(gdm.Limbs[i])
 	}
 
@@ -68,6 +68,7 @@ func GenerateAndAssignGenDataModule(run *wizard.ProverRuntime, gdm *generic.GenD
 		randElement := randLimbs(rng, numBytesInt)
 		limbBytes := randElement.Bytes()
 		dividedLimbs := common.DivideBytes(limbBytes[32-numBytesInt:])
+
 		for j, limb := range dividedLimbs {
 			var l field.Element
 			l.SetBytes(limb)
@@ -149,7 +150,7 @@ func CreateGenDataModule(
 	gbm.HashNum = createCol("HASH_NUM")
 	gbm.Index = createCol("INDEX")
 
-	for i := 0; i < common.NbLimbU256; i++ {
+	for i := 0; i < common.NbLimbU128; i++ {
 		gbm.Limbs = append(gbm.Limbs, createCol("LIMBS_%d", i))
 	}
 
