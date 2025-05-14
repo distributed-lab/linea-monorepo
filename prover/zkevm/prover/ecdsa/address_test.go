@@ -49,6 +49,7 @@ func TestAddress(t *testing.T) {
 		}
 
 		copy(uaGnark.GnarkData[:], gbmGnark.Limbs)
+		copy(uaGnark.GnarkDataLA[:], uaGnark.GnarkData[:])
 
 		ac.UnalignedGnarkData = uaGnark
 
