@@ -178,11 +178,11 @@ func (addr *Addresses) GetProvider(comp *wizard.CompiledIOP, id ifaces.Column, u
 	return provider
 }
 
-// It builds a GenericByteModule from Address columns and Public-Key/GnarkData columns.
+// It builds a GenericByteModule from Address columns and Public-Key/GnarkDataLA columns.
 func (addr *Addresses) buildGenericModule(id ifaces.Column, uaGnark *UnalignedGnarkData) (pkModule generic.GenericByteModule) {
 	pkModule.Data = generic.GenDataModule{
 		HashNum: id,
-		Limbs:   uaGnark.GnarkData[:],
+		Limbs:   uaGnark.GnarkDataLA[:],
 
 		// a column of all 16, since all the bytes of public key are used in hashing
 		NBytes: addr.col16,
@@ -243,6 +243,8 @@ func (addr *Addresses) assignMainColumns(
 
 	split := splitAt(nbEcRecover)
 	n := nbRowsPerEcRec
+
+	//println("\n\n\nAddress")
 
 	streams := pkModule.Data.ScanStreams(run)
 	permTrace := keccak.GenerateTrace(streams)
