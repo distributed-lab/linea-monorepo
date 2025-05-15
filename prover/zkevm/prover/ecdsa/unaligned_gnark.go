@@ -164,29 +164,31 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			// we copy the data from ecrecover
 			prependZeroCount = nbRowsPerEcRecFetching
 
+			// we copy the data from ecrecover
 			var successBitLimbs [common.NbLimbU128]field.Element
 			successBitLimbs[common.NbLimbU128-1] = sourceSuccessBit.Get(i)
 
 			for j, limb := range successBitLimbs {
-				rows[96+j] = limb
+				rows[12*common.NbLimbU128+j] = limb
 			}
 
 			var oneLimbs [common.NbLimbU128]field.Element
 			oneLimbs[common.NbLimbU128-1] = field.NewElement(1)
 
 			for j, limb := range oneLimbs {
-				rows[104+j] = limb
+				rows[13*common.NbLimbU128+j] = limb
 			}
 
 			// copy h0, h1, r0, r1, s0, s1, v0, v1
 			for j := 0; j < 8; j++ {
 				for k := 0; k < common.NbLimbU128; k++ {
-					rows[32+j*common.NbLimbU128+k] = sourceLimb[k].Get(i + j)
+					colOffset := j * common.NbLimbU128
+					rows[4*common.NbLimbU128+colOffset+k] = sourceLimb[k].Get(i + j)
 				}
 			}
 
 			var txBts []byte
-			for _, txHighBtsRow := range rows[32:48] {
+			for _, txHighBtsRow := range rows[4*common.NbLimbU128 : 6*common.NbLimbU128] {
 				bytes := txHighBtsRow.Bytes()
 				txBts = append(txBts, bytes[30:]...)
 			}
@@ -194,7 +196,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			copy(prehashedMsg[:], txBts[:])
 
 			var vBts []byte
-			for _, vBtsRow := range rows[48:64] {
+			for _, vBtsRow := range rows[6*common.NbLimbU128 : 8*common.NbLimbU128] {
 				bytes := vBtsRow.Bytes()
 				vBts = append(vBts, bytes[30:]...)
 			}
@@ -202,7 +204,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			v.SetBytes(vBts)
 
 			var rBts []byte
-			for _, rBtsRow := range rows[64:80] {
+			for _, rBtsRow := range rows[8*common.NbLimbU128 : 10*common.NbLimbU128] {
 				bytes := rBtsRow.Bytes()
 				rBts = append(rBts, bytes[30:]...)
 			}
@@ -210,7 +212,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			r.SetBytes(rBts)
 
 			var sBts []byte
-			for _, sBtsRow := range rows[80:96] {
+			for _, sBtsRow := range rows[10*common.NbLimbU128 : 12*common.NbLimbU128] {
 				bytes := sBtsRow.Bytes()
 				sBts = append(sBts, bytes[30:]...)
 			}
@@ -219,27 +221,28 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 
 			i += NB_ECRECOVER_INPUTS
 		} else if isActive.IsOne() && source.Cmp(&SOURCE_TX) == 0 {
-			// we copy the data from the transcation
 			prependZeroCount = nbRowsPerTxSignFetching
 
+			// we copy the data from the transcation
 			var successBitLimbs [common.NbLimbU128]field.Element
 			successBitLimbs[common.NbLimbU128-1] = field.NewElement(1) // always succeeds, we only include valid transactions
 
 			for j, limb := range successBitLimbs {
-				rows[96+j] = limb
+				rows[12*common.NbLimbU128+j] = limb
 			}
 
 			var zeroLimbs [common.NbLimbU128]field.Element
 			for j, limb := range zeroLimbs {
-				rows[104+j] = limb
+				rows[13*common.NbLimbU128+j] = limb
 			}
 
+			// copy txHashHi, txHashLo
 			for j := 0; j < common.NbLimbU256; j++ {
-				rows[32+j] = sourceTxHash[j].Get(i)
+				rows[4*common.NbLimbU128+j] = sourceTxHash[j].Get(i)
 			}
 
 			var txBts []byte
-			for _, txHighBtsRow := range rows[32:48] {
+			for _, txHighBtsRow := range rows[4*common.NbLimbU128 : 6*common.NbLimbU128] {
 				bytes := txHighBtsRow.Bytes()
 				txBts = append(txBts, bytes[30:]...)
 			}
@@ -255,21 +258,21 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 
 			vLimbs := SplitBytes(buf[:])
 			for j, vLimb := range vLimbs {
-				rows[48+j].SetBytes(vLimb)
+				rows[6*common.NbLimbU128+j].SetBytes(vLimb)
 			}
 
 			r.FillBytes(buf[:])
 
 			rLimbs := SplitBytes(buf[:])
 			for j, rLimb := range rLimbs {
-				rows[48+len(vLimbs)+j].SetBytes(rLimb)
+				rows[8*common.NbLimbU128+j].SetBytes(rLimb)
 			}
 
 			s.FillBytes(buf[:])
 
 			sLimbs := SplitBytes(buf[:])
 			for j, sLimb := range sLimbs {
-				rows[48+len(vLimbs)+len(rLimbs)+j].SetBytes(sLimb)
+				rows[10*common.NbLimbU128+j].SetBytes(sLimb)
 			}
 
 			i += NB_TX_INPUTS
@@ -297,7 +300,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 		pky := pk.A.Y.Bytes()
 		pkyLimbs := SplitBytes(pky[:])
 		for j, yLimb := range pkyLimbs {
-			rows[16+j].SetBytes(yLimb)
+			rows[2*common.NbLimbU128+j].SetBytes(yLimb)
 		}
 
 		resIsPublicKey = append(resIsPublicKey, make([]field.Element, prependZeroCount)...)
