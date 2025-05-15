@@ -116,8 +116,7 @@ func (ec *EcRecover) assignFromEcDataSource(run *wizard.ProverRuntime, src *ecDa
 	for i := 0; i < common.NbLimbU128; i++ {
 		sourceLimb[i] = run.GetColumn(src.Limb[i].GetColID())
 
-		if sourceID.Len() != sourceLimb[i].Len() ||
-			sourceLimb[i].Len() != sourceSuccessBit.Len() {
+		if sourceID.Len() != sourceLimb[i].Len() || sourceLimb[i].Len() != sourceSuccessBit.Len() {
 			panic("all source limb columns must have the same length")
 		}
 	}
