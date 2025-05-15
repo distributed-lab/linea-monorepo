@@ -21,8 +21,8 @@ import (
 const (
 	nbRowsPerPublicKey = 4
 
-	// gnarkDataLeftAlignmentOffset is the number of bytes that were offset in UnalignedGnarkData.GnarkData.
-	gnarkDataLeftAlignmentOffset = generic.TotalLimbSize - generic.TotalLimbSize/common.NbLimbU128
+	// gnarkDataLeftAlignmentOffset is the number of bits that were offset in UnalignedGnarkData.GnarkData.
+	gnarkDataLeftAlignmentOffset = (generic.TotalLimbSize - generic.TotalLimbSize/common.NbLimbU128) * 8
 )
 
 type UnalignedGnarkData struct {
@@ -513,7 +513,7 @@ func (d *UnalignedGnarkData) csGnarkDataLeftAligned(comp *wizard.CompiledIOP, sr
 		comp.InsertGlobal(
 			ROUND_NR,
 			ifaces.QueryIDf("%v_%v_%d", NAME_UNALIGNED_GNARKDATA, "LEFT_ALIGNEMENT", i),
-			sym.Sub(sym.Mul(d.GnarkData[i], sym.Pow(2, 8*gnarkDataLeftAlignmentOffset)), d.GnarkDataLA[i]),
+			sym.Sub(sym.Mul(d.GnarkData[i], sym.Pow(2, gnarkDataLeftAlignmentOffset)), d.GnarkDataLA[i]),
 		)
 	}
 }
