@@ -42,11 +42,15 @@ func TestAddress(t *testing.T) {
 			Inputs: &antichamberInput{settings: limits},
 			ID:     gbmGnark.HashNum,
 		}
+
 		uaGnark = &UnalignedGnarkData{
-			GnarkData:           gbmGnark.Limb,
 			GnarkPublicKeyIndex: gbmGnark.Index,
 			IsPublicKey:         gbmGnark.ToHash,
 		}
+
+		copy(uaGnark.GnarkData[:], gbmGnark.Limbs)
+		copy(uaGnark.GnarkDataLA[:], uaGnark.GnarkData[:])
+
 		ac.UnalignedGnarkData = uaGnark
 
 		// commit to txnData and ecRecover
@@ -60,6 +64,7 @@ func TestAddress(t *testing.T) {
 			Provider:      addr.provider,
 			MaxNumKeccakF: nbKeccakF,
 		}
+
 		m = keccak.NewKeccakSingleProvider(comp, keccakInp)
 
 	}, dummy.Compile)
@@ -67,6 +72,7 @@ func TestAddress(t *testing.T) {
 	proof := wizard.Prove(compiled, func(run *wizard.ProverRuntime) {
 
 		testdata.GenerateAndAssignGenDataModule(run, &gbmGnark, c.HashNum, c.ToHash, false)
+
 		// it assign mock data to EcRec and txn_data
 		AssignEcRecTxnData(run, gbmGnark, limits.MaxNbEcRecover, limits.MaxNbTx, sizeTxnData, size, td, ecRec, ac)
 
