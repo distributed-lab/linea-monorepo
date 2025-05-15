@@ -253,21 +253,21 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 
 			v.FillBytes(buf[:])
 
-			vLimbs := common.DivideBytes(buf[:])
+			vLimbs := SplitBytes(buf[:])
 			for j, vLimb := range vLimbs {
 				rows[48+j].SetBytes(vLimb)
 			}
 
 			r.FillBytes(buf[:])
 
-			rLimbs := common.DivideBytes(buf[:])
+			rLimbs := SplitBytes(buf[:])
 			for j, rLimb := range rLimbs {
 				rows[48+len(vLimbs)+j].SetBytes(rLimb)
 			}
 
 			s.FillBytes(buf[:])
 
-			sLimbs := common.DivideBytes(buf[:])
+			sLimbs := SplitBytes(buf[:])
 			for j, sLimb := range sLimbs {
 				rows[48+len(vLimbs)+len(rLimbs)+j].SetBytes(sLimb)
 			}
@@ -289,13 +289,13 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 		}
 
 		pkx := pk.A.X.Bytes()
-		pkxLimbs := common.DivideBytes(pkx[:])
+		pkxLimbs := SplitBytes(pkx[:])
 		for j, xLimb := range pkxLimbs {
 			rows[j].SetBytes(xLimb)
 		}
 
 		pky := pk.A.Y.Bytes()
-		pkyLimbs := common.DivideBytes(pky[:])
+		pkyLimbs := SplitBytes(pky[:])
 		for j, yLimb := range pkyLimbs {
 			rows[16+j].SetBytes(yLimb)
 		}

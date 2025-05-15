@@ -1,10 +1,10 @@
-package common
+package ecdsa
 
 // LimbBytes is the size of one limb in bytes
 const LimbBytes = 2
 
-// DivideBytes splits the input slice into subarrays of the size defined by LimbBytes.
-func DivideBytes(input []byte) [][]byte {
+// SplitBytes splits the input slice into subarrays of the provided size.
+func SplitBytes(input []byte) [][]byte {
 	if len(input) == 0 {
 		return [][]byte{}
 	}
