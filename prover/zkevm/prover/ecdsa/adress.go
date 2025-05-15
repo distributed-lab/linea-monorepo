@@ -244,8 +244,6 @@ func (addr *Addresses) assignMainColumns(
 	split := splitAt(nbEcRecover)
 	n := nbRowsPerEcRec
 
-	//println("\n\n\nAddress")
-
 	streams := pkModule.Data.ScanStreams(run)
 	permTrace := keccak.GenerateTrace(streams)
 
