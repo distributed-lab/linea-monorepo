@@ -7,6 +7,7 @@ import (
 	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
 	"github.com/consensys/linea-monorepo/prover/utils"
+	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/hash/generic"
 )
 
@@ -69,6 +70,8 @@ type antichamber struct {
 
 	// providers for keccak, Providers contain the inputs and outputs of keccak hash.
 	Providers []generic.GenericByteModule
+
+	flattenLimbs *common.FlattenColumn
 }
 
 type Settings struct {
@@ -113,11 +116,14 @@ func newAntichamber(comp *wizard.CompiledIOP, inputs *antichamberInput) *anticha
 	res.EcRecover = newEcRecover(comp, inputs.settings, inputs.ecSource)
 	res.UnalignedGnarkData = newUnalignedGnarkData(comp, size, res.unalignedGnarkDataSource())
 	res.Addresses = newAddress(comp, size, res.EcRecover, res, inputs.txSource)
+
+	res.flattenLimbs = common.NewFlattenColumn(comp, common.NbLimbU128, res.UnalignedGnarkData.GnarkData[:], res.IsPushing)
+
 	toAlign := &plonk.CircuitAlignmentInput{
 		Name:               NAME_GNARK_DATA,
 		Round:              ROUND_NR,
-		DataToCircuit:      res.UnalignedGnarkData.GnarkData,
-		DataToCircuitMask:  res.IsPushing,
+		DataToCircuit:      res.flattenLimbs.Limbs(),
+		DataToCircuitMask:  res.flattenLimbs.Mask(),
 		Circuit:            newMultiEcRecoverCircuit(settings.NbInputInstance),
 		InputFiller:        inputFiller,
 		PlonkOptions:       inputs.plonkOptions,
@@ -132,6 +138,8 @@ func newAntichamber(comp *wizard.CompiledIOP, inputs *antichamberInput) *anticha
 	res.csIDSequential(comp)
 	res.csSource(comp)
 	res.csTransitions(comp)
+
+	res.flattenLimbs.CsFlattenProjection(comp)
 
 	// consistency with submodules
 	// ecrecover
@@ -159,10 +167,14 @@ func (ac *antichamber) assign(run *wizard.ProverRuntime, txGet TxSignatureGetter
 		txSource          = ac.Inputs.txSource
 		nbActualEcRecover = ecSrc.nbActualInstances(run)
 	)
+
 	ac.assignAntichamber(run, nbActualEcRecover, nbTx)
 	ac.EcRecover.Assign(run, ecSrc)
 	ac.txSignature.assignTxSignature(run, nbActualEcRecover)
 	ac.UnalignedGnarkData.Assign(run, ac.unalignedGnarkDataSource(), txGet)
+
+	ac.flattenLimbs.Run(run)
+
 	ac.Addresses.assignAddress(run, nbActualEcRecover, ac.size, ac, ac.EcRecover, ac.UnalignedGnarkData, txSource)
 	ac.AlignedGnarkData.Assign(run)
 }
