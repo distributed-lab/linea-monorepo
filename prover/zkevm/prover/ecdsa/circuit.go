@@ -2,7 +2,6 @@ package ecdsa
 
 import (
 	"fmt"
-
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/algebra"
 	"github.com/consensys/gnark/std/algebra/emulated/sw_emulated"
@@ -11,16 +10,17 @@ import (
 	"github.com/consensys/gnark/std/math/emulated"
 	"github.com/consensys/gnark/std/math/emulated/emparams"
 	"github.com/consensys/linea-monorepo/prover/maths/field"
+	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 )
 
 type EcRecoverInstance struct {
-	PKXHi, PKXLo, PKYHi, PKYLo frontend.Variable `gnark:",public"`
-	HHi, HLo                   frontend.Variable `gnark:",public"`
-	VHi, VLo                   frontend.Variable `gnark:",public"`
-	RHi, RLo                   frontend.Variable `gnark:",public"`
-	SHi, SLo                   frontend.Variable `gnark:",public"`
-	SUCCESS_BIT                frontend.Variable `gnark:",public"`
-	ECRECOVERBIT               frontend.Variable `gnark:",public"`
+	PKXHi, PKXLo, PKYHi, PKYLo [common.NbLimbU128]frontend.Variable `gnark:",public"`
+	HHi, HLo                   [common.NbLimbU128]frontend.Variable `gnark:",public"`
+	VHi, VLo                   [common.NbLimbU128]frontend.Variable `gnark:",public"`
+	RHi, RLo                   [common.NbLimbU128]frontend.Variable `gnark:",public"`
+	SHi, SLo                   [common.NbLimbU128]frontend.Variable `gnark:",public"`
+	SUCCESS_BIT                frontend.Variable                    `gnark:",public"`
+	ECRECOVERBIT               frontend.Variable                    `gnark:",public"`
 }
 
 type MultiEcRecoverCircuit struct {
