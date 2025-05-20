@@ -2,7 +2,9 @@ package ecdsa
 
 import (
 	"github.com/consensys/linea-monorepo/prover/protocol/dedicated/plonk"
+	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
+	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/hash/generic"
 )
 
@@ -37,32 +39,45 @@ func (e *EcdsaZkEvm) GetProviders() []generic.GenericByteModule {
 }
 
 func getEcdataArithmetization(comp *wizard.CompiledIOP) *ecDataSource {
-	return &ecDataSource{
+	src := &ecDataSource{
 		CsEcrecover: comp.Columns.GetHandle("ecdata.CIRCUIT_SELECTOR_ECRECOVER"),
 		ID:          comp.Columns.GetHandle("ecdata.ID"),
-		Limb:        comp.Columns.GetHandle("ecdata.LIMB"),
 		SuccessBit:  comp.Columns.GetHandle("ecdata.SUCCESS_BIT"),
 		Index:       comp.Columns.GetHandle("ecdata.INDEX"),
 		IsData:      comp.Columns.GetHandle("ecdata.IS_ECRECOVER_DATA"),
 		IsRes:       comp.Columns.GetHandle("ecdata.IS_ECRECOVER_RESULT"),
 	}
+
+	for i := 0; i < common.NbLimbU128; i++ {
+		src.Limb[i] = comp.Columns.GetHandle(ifaces.ColIDf("ecdata.LIMB_%d", i))
+	}
+
+	return src
 }
 
 func getTxnDataArithmetization(comp *wizard.CompiledIOP) *txnData {
 	td := &txnData{
-		fromHi: comp.Columns.GetHandle("txndata.FROM_HI"),
-		fromLo: comp.Columns.GetHandle("txndata.FROM_LO"),
-		ct:     comp.Columns.GetHandle("txndata.CT"),
+		ct: comp.Columns.GetHandle("txndata.CT"),
 	}
+
+	for i := 0; i < common.NbLimbU256; i++ {
+		td.from[i] = comp.Columns.GetHandle(ifaces.ColIDf("txndata.FROM_%d", i))
+	}
+
 	return td
 }
 
 func getRlpTxnArithmetization(comp *wizard.CompiledIOP) generic.GenDataModule {
-	return generic.GenDataModule{
+	res := generic.GenDataModule{
 		HashNum: comp.Columns.GetHandle("rlptxn.ABS_TX_NUM"),
 		Index:   comp.Columns.GetHandle("rlptxn.INDEX_LX"),
-		Limb:    comp.Columns.GetHandle("rlptxn.LIMB"),
 		NBytes:  comp.Columns.GetHandle("rlptxn.nBYTES"),
 		ToHash:  comp.Columns.GetHandle("rlptxn.TO_HASH_BY_PROVER"),
 	}
+
+	for i := 0; i < common.NbLimbU128; i++ {
+		res.Limbs = append(res.Limbs, comp.Columns.GetHandle(ifaces.ColIDf("rlptxn.LIMB_%d", i)))
+	}
+
+	return res
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
 	sym "github.com/consensys/linea-monorepo/prover/symbolic"
 	common "github.com/consensys/linea-monorepo/prover/zkevm/prover/common/common_constraints"
+	bcommon "github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 )
 
 func (ec *ECPair) csIsActiveActivation(comp *wizard.CompiledIOP) {
@@ -36,34 +37,36 @@ func (ec *ECPair) csFlagConsistency(comp *wizard.CompiledIOP) {
 }
 
 func (ec *ECPair) csOffWhenInactive(comp *wizard.CompiledIOP) {
-	// nothing is set when inactive
-	common.MustZeroWhenInactive(comp, ec.IsActive,
+	cols := []ifaces.Column{
 		ec.UnalignedPairingData.InstanceID,
 		ec.UnalignedPairingData.PairID,
 		ec.UnalignedPairingData.TotalPairs,
-		ec.UnalignedPairingData.Limb,
 		ec.UnalignedPairingData.Index,
 		ec.UnalignedPairingData.IsFirstLineOfInstance,
 		ec.UnalignedPairingData.IsFirstLineOfPrevAccumulator,
 		ec.UnalignedPairingData.IsFirstLineOfCurrAccumulator,
-		ec.UnalignedG2MembershipData.Limb,
 		ec.UnalignedG2MembershipData.SuccessBit,
-	)
+	}
+	cols = append(cols, ec.UnalignedPairingData.Limbs[:]...)
+	cols = append(cols, ec.UnalignedG2MembershipData.Limbs[:]...)
+
+	// nothing is set when inactive
+	common.MustZeroWhenInactive(comp, ec.IsActive, cols...)
 }
 
 func (ec *ECPair) csProjections(comp *wizard.CompiledIOP) {
 	// we project data from the arithmetization correctly to the unaligned part of the circuit
 	projection.InsertProjection(
 		comp, ifaces.QueryIDf("%v_PROJECTION_PAIRING", nameECPair),
-		[]ifaces.Column{ec.ECPairSource.Limb, ec.ECPairSource.ID, ec.ECPairSource.IsEcPairingResult},
-		[]ifaces.Column{ec.UnalignedPairingData.Limb, ec.UnalignedPairingData.InstanceID, ec.UnalignedPairingData.IsResultOfInstance},
+		append(ec.ECPairSource.Limbs[:], ec.ECPairSource.ID, ec.ECPairSource.IsEcPairingResult),
+		append(ec.UnalignedPairingData.Limbs[:], ec.UnalignedPairingData.InstanceID, ec.UnalignedPairingData.IsResultOfInstance),
 		ec.ECPairSource.CsEcpairing,
 		ec.UnalignedPairingData.IsPulling,
 	)
 	projection.InsertProjection(
 		comp, ifaces.QueryIDf("%v_PROJECTION_MEMBERSHIP", nameECPair),
-		[]ifaces.Column{ec.ECPairSource.Limb, ec.ECPairSource.SuccessBit},
-		[]ifaces.Column{ec.UnalignedG2MembershipData.Limb, ec.UnalignedG2MembershipData.SuccessBit},
+		append(ec.ECPairSource.Limbs[:], ec.ECPairSource.SuccessBit),
+		append(ec.UnalignedG2MembershipData.Limbs[:], ec.UnalignedG2MembershipData.SuccessBit),
 		ec.ECPairSource.CsG2Membership, ec.UnalignedG2MembershipData.IsPulling,
 	)
 }
@@ -72,10 +75,29 @@ func (ec *ECPair) csMembershipComputedResult(comp *wizard.CompiledIOP) {
 	// when row is IS_COMPUTED, then this corresponds to the result of the G2
 	// membership check. In the source it is in separate column and we have to
 	// show that it corresponds to the column (but in previous row).
+
+	// as the limbs divide into 8 columns, first 7 of them are 0.
+	for i := range bcommon.NbLimbU128 - 1 {
+		comp.InsertGlobal(
+			roundNr,
+			ifaces.QueryIDf("%v_MEMBERSHIP_CHECK_RESULT_EMPTY_LIMB_%d", nameECPair, i),
+			sym.Mul(
+				ec.UnalignedG2MembershipData.IsComputed,
+				ec.UnalignedG2MembershipData.Limbs[i],
+			),
+		)
+	}
+
 	comp.InsertGlobal(
 		roundNr,
 		ifaces.QueryIDf("%v_MEMBERSHIP_CHECK_RESULT", nameECPair),
-		sym.Mul(ec.UnalignedG2MembershipData.IsComputed, sym.Sub(ec.UnalignedG2MembershipData.Limb, column.Shift(ec.UnalignedG2MembershipData.SuccessBit, -1))),
+		sym.Mul(
+			ec.UnalignedG2MembershipData.IsComputed,
+			sym.Sub(
+				ec.UnalignedG2MembershipData.Limbs[bcommon.NbLimbU128-1],
+				column.Shift(ec.UnalignedG2MembershipData.SuccessBit, -1),
+			),
+		),
 	)
 }
 
@@ -131,11 +153,26 @@ func (ec *ECPair) csAccumulatorInit(comp *wizard.CompiledIOP) {
 	// we omit range checking as the limbs will be projected to the gnark
 	// circuit which already performs range checking for 128 bit limbs.
 
+	// as the limbs divide into 8 columns, first 7 of them are 0
+	for i := 0; i < bcommon.NbLimbU128-1; i++ {
+		comp.InsertGlobal(
+			roundNr,
+			ifaces.QueryIDf("%v_ACCUMULATOR_INIT_EMPTY_LIMB_%d", nameECPair, i),
+			sym.Mul(
+				ec.UnalignedPairingData.IsActive,
+				ec.UnalignedPairingData.IsFirstLineOfInstance,
+				ec.UnalignedPairingData.Limbs[i],
+			),
+		)
+	}
+
+	lastLimbCol := ec.UnalignedPairingData.Limbs[bcommon.NbLimbU128-1]
+
 	// first HI=0, LO=1
-	accLimbSum := sym.Add(ec.UnalignedPairingData.Limb, sym.Sub(column.Shift(ec.UnalignedPairingData.Limb, 1), 1))
+	accLimbSum := sym.Add(lastLimbCol, sym.Sub(column.Shift(lastLimbCol, 1), 1))
 	for i := 2; i < nbGtLimbs; i++ {
 		// rest HI=0, LO=0
-		accLimbSum = sym.Add(accLimbSum, column.Shift(ec.UnalignedPairingData.Limb, i))
+		accLimbSum = sym.Add(accLimbSum, column.Shift(lastLimbCol, i))
 	}
 
 	comp.InsertGlobal(
@@ -154,7 +191,7 @@ func (ec *ECPair) csAccumulatorConsistency(comp *wizard.CompiledIOP) {
 	projection.InsertProjection(
 		comp,
 		ifaces.QueryIDf("%v_ACCUMULATOR_CONSISTENCY", nameECPair),
-		[]ifaces.Column{ec.UnalignedPairingData.Limb}, []ifaces.Column{ec.UnalignedPairingData.Limb},
+		ec.UnalignedPairingData.Limbs[:], ec.UnalignedPairingData.Limbs[:],
 		ec.UnalignedPairingData.IsAccumulatorCurr, ec.UnalignedPairingData.IsAccumulatorPrev,
 	)
 }
