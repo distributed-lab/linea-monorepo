@@ -208,7 +208,7 @@ func (addr *Addresses) GetProvider(comp *wizard.CompiledIOP, id ifaces.Column, u
 func (addr *Addresses) buildGenericModule(id ifaces.Column, uaGnark *UnalignedGnarkData) (pkModule generic.GenericByteModule) {
 	pkModule.Data = generic.GenDataModule{
 		HashNum: id,
-		Limbs:   uaGnark.GnarkDataLA[:],
+		Limbs:   uaGnark.GnarkData[:],
 
 		// a column of all 16, since all the bytes of public key are used in hashing
 		NBytes: addr.col16,
