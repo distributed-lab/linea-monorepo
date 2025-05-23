@@ -204,7 +204,7 @@ func (addr *Addresses) GetProvider(comp *wizard.CompiledIOP, id ifaces.Column, u
 	return provider
 }
 
-// It builds a GenericByteModule from Address columns and Public-Key/GnarkDataLA columns.
+// It builds a GenericByteModule from Address columns and Public-Key/GnarkData columns.
 func (addr *Addresses) buildGenericModule(id ifaces.Column, uaGnark *UnalignedGnarkData) (pkModule generic.GenericByteModule) {
 	pkModule.Data = generic.GenDataModule{
 		HashNum: id,

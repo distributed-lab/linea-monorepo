@@ -140,7 +140,6 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 	}
 
 	var resIsPublicKey, resGnarkIndex, resGnarkPkIndex []field.Element
-	var resGnarkDataLA [common.NbLimbU128][]field.Element
 	var resGnarkData [common.NbLimbU128][]field.Element
 	var txCount = 0
 
@@ -319,7 +318,6 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 
 		for j := 0; j < common.NbLimbU128; j++ {
 			resGnarkData[j] = append(resGnarkData[j], make([]field.Element, prependZeroCount)...)
-			resGnarkDataLA[j] = append(resGnarkDataLA[j], make([]field.Element, prependZeroCount)...)
 		}
 
 		// Assign limb elements column by column
@@ -332,7 +330,6 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			elementLA.SetBytes(bytes[:])
 
 			resGnarkData[j%common.NbLimbU128] = append(resGnarkData[j%common.NbLimbU128], rows[j])
-			resGnarkDataLA[j%common.NbLimbU128] = append(resGnarkDataLA[j%common.NbLimbU128], elementLA)
 		}
 	}
 	// pad the vectors to the full size. It is expected in the hashing module
@@ -347,7 +344,6 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 	run.AssignColumn(d.GnarkPublicKeyIndex.GetColID(), smartvectors.RightZeroPadded(resGnarkPkIndex, d.size))
 
 	for j := 0; j < common.NbLimbU128; j++ {
-		resGnarkDataLA[j] = append(resGnarkDataLA[j], make([]field.Element, d.size-len(resGnarkDataLA[j]))...)
 		resGnarkData[j] = append(resGnarkData[j], make([]field.Element, d.size-len(resGnarkData[j]))...)
 
 		run.AssignColumn(d.GnarkData[j].GetColID(), smartvectors.RightZeroPadded(resGnarkData[j], d.size))
