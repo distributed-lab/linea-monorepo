@@ -29,11 +29,6 @@ func TestImportAndPad(t *testing.T) {
 			UseCase:     generic.KeccakUsecase,
 			PaddingFunc: keccak.PadStream,
 		},
-		{
-			Name:        "MiMC",
-			ModFilePath: "testdata/mod_mimc.csv",
-			UseCase:     generic.MiMCUsecase,
-		},
 	}
 
 	for _, uc := range testCases {
@@ -118,6 +113,11 @@ func TestImportAndPadSeveralLimbs(t *testing.T) {
 			ModFilePath: "testdata/multi_cols_mod_sha2.csv",
 			UseCase:     generic.Sha2Usecase,
 			PaddingFunc: sha2.PadStream,
+		},
+		{
+			Name:        "MiMC",
+			ModFilePath: "testdata/mod_mimc.csv",
+			UseCase:     generic.MiMCUsecase,
 		},
 	}
 

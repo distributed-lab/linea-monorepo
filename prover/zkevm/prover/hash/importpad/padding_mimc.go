@@ -26,10 +26,12 @@ type mimcPadderAssignmentBuilder struct{}
 func (ipad *importation) newMimcPadder(comp *wizard.CompiledIOP) padder {
 
 	// The padding values are all zero
-	comp.InsertGlobal(0,
-		ifaces.QueryIDf("%v_MIMC_PADDING_VALUES_ARE_ZERO", ipad.Inputs.Name),
-		sym.Mul(ipad.IsPadded, ipad.Limbs),
-	)
+	for i := range ipad.Limbs {
+		comp.InsertGlobal(0,
+			ifaces.QueryIDf("%v_MIMC_PADDING_VALUES_ARE_ZERO_%d", ipad.Inputs.Name, i),
+			sym.Mul(ipad.IsPadded, ipad.Limbs[i]),
+		)
+	}
 
 	// This check that we do not pad by more than a whole block. It does not check
 	// that this does exactly the right number of padded bytes. This is OK since
@@ -63,7 +65,9 @@ func (sp mimcPadder) pushPaddingRows(byteStringSize int, ipad *importationAssign
 		remainToPad -= currNbBytes
 
 		ipad.pushPaddingCommonColumns()
-		ipad.Limbs[0].PushZero()
+		for i := range ipad.Limbs {
+			ipad.Limbs[i].PushZero()
+		}
 		ipad.NBytes.PushInt(currNbBytes)
 		ipad.AccPaddedBytes.PushInt(accPaddedBytes)
 	}
