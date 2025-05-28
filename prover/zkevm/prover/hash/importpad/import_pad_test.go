@@ -22,14 +22,7 @@ func TestImportAndPad(t *testing.T) {
 		ModFilePath string
 		UseCase     generic.HashingUsecase
 		PaddingFunc func(stream []byte) []byte
-	}{
-		{
-			Name:        "Keccak",
-			ModFilePath: "testdata/mod_keccak.csv",
-			UseCase:     generic.KeccakUsecase,
-			PaddingFunc: keccak.PadStream,
-		},
-	}
+	}{}
 
 	for _, uc := range testCases {
 		t.Run(uc.Name, func(t *testing.T) {
@@ -108,6 +101,12 @@ func TestImportAndPadSeveralLimbs(t *testing.T) {
 		UseCase     generic.HashingUsecase
 		PaddingFunc func(stream []byte) []byte
 	}{
+		{
+			Name:        "Keccak",
+			ModFilePath: "testdata/mod_keccak.csv",
+			UseCase:     generic.KeccakUsecase,
+			PaddingFunc: keccak.PadStream,
+		},
 		{
 			Name:        "Sha2",
 			ModFilePath: "testdata/multi_cols_mod_sha2.csv",

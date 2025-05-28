@@ -37,7 +37,7 @@ func (iPadd *importation) newKeccakPadder(comp *wizard.CompiledIOP) padder {
 		isPadded     = iPadd.IsPadded
 		isPaddedPrev = column.Shift(isPadded, -1)
 		isPaddedNext = column.Shift(isPadded, 1)
-		limb         = iPadd.Limbs
+		limbs        = iPadd.Limbs
 		nBytes       = iPadd.NBytes
 	)
 
@@ -51,11 +51,11 @@ func (iPadd *importation) newKeccakPadder(comp *wizard.CompiledIOP) padder {
 	// NB: this only works because we are guaranteed by all the callers that
 	// the empty string cannot exists in the imported data.
 	comp.InsertGlobal(0,
-		ifaces.QueryIDf("%v_KECCAK_PADDING_VALUE", iPadd.Inputs.Name),
+		ifaces.QueryIDf("%v_KECCAK_PADDING_VALUE_0", iPadd.Inputs.Name),
 		sym.Mul(
 			isPadded,
 			sym.Sub(
-				limb,
+				limbs[0],
 				sym.Mul(
 					sym.Sub(1, isPaddedPrev),
 					dsv,
@@ -67,6 +67,15 @@ func (iPadd *importation) newKeccakPadder(comp *wizard.CompiledIOP) padder {
 			),
 		),
 	)
+
+	// Only the first limb is used to store the padding value, so we
+	// ensure that all the other limbs are zero.
+	for i := 1; i < nbLimbs; i++ {
+		comp.InsertGlobal(0,
+			ifaces.QueryIDf("%v_KECCAK_PADDING_LIMB_%d", iPadd.Inputs.Name, i),
+			sym.Mul(isPadded, limbs[i]),
+		)
+	}
 
 	// This constraints ensures that that whenever we are looking a in the DSV,
 	// FPV or FPV + DSV, then the value of nBytes should be 1.
@@ -110,6 +119,9 @@ func (kp keccakPadder) pushPaddingRows(byteStringSize int, iPadd *importationAss
 	if remainToPad == 1 {
 		iPadd.pushPaddingCommonColumns()
 		iPadd.Limbs[0].PushField(leftAlignLimb(129, 1, nbLimbs))
+		for i := 1; i < nbLimbs; i++ {
+			iPadd.Limbs[i].PushZero()
+		}
 		iPadd.NBytes.PushOne()
 		iPadd.AccPaddedBytes.PushOne()
 		return
@@ -117,6 +129,9 @@ func (kp keccakPadder) pushPaddingRows(byteStringSize int, iPadd *importationAss
 
 	iPadd.pushPaddingCommonColumns()
 	iPadd.Limbs[0].PushField(leftAlignLimb(1, 1, nbLimbs))
+	for i := 1; i < nbLimbs; i++ {
+		iPadd.Limbs[i].PushZero()
+	}
 	iPadd.NBytes.PushOne()
 	iPadd.AccPaddedBytes.PushOne()
 	remainToPad--
@@ -125,13 +140,18 @@ func (kp keccakPadder) pushPaddingRows(byteStringSize int, iPadd *importationAss
 		currNbBytes := utils.Min(remainToPad-1, 16)
 		remainToPad -= currNbBytes
 		iPadd.pushPaddingCommonColumns()
-		iPadd.Limbs[0].PushZero()
+		for i := 0; i < nbLimbs; i++ {
+			iPadd.Limbs[i].PushZero()
+		}
 		iPadd.NBytes.PushInt(currNbBytes)
 		iPadd.AccPaddedBytes.PushIncBy(currNbBytes)
 	}
 
 	iPadd.pushPaddingCommonColumns()
 	iPadd.Limbs[0].PushField(leftAlignLimb(128, 1, nbLimbs))
+	for i := 1; i < nbLimbs; i++ {
+		iPadd.Limbs[i].PushZero()
+	}
 	iPadd.NBytes.PushOne()
 	iPadd.AccPaddedBytes.PushInc()
 }
