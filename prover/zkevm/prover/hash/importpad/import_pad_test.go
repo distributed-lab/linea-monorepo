@@ -22,84 +22,6 @@ func TestImportAndPad(t *testing.T) {
 		ModFilePath string
 		UseCase     generic.HashingUsecase
 		PaddingFunc func(stream []byte) []byte
-	}{}
-
-	for _, uc := range testCases {
-		t.Run(uc.Name, func(t *testing.T) {
-
-			var (
-				inp   ImportAndPadInputs
-				mod   *importation
-				inpCt = csvtraces.MustOpenCsvFile("testdata/input.csv")
-				modCt = csvtraces.MustOpenCsvFile(uc.ModFilePath)
-			)
-
-			comp := wizard.Compile(func(build *wizard.Builder) {
-
-				inp = ImportAndPadInputs{
-					Name: "TESTING",
-					Src: generic.GenericByteModule{Data: generic.GenDataModule{
-						HashNum: inpCt.GetCommit(build, "HASH_NUM"),
-						Index:   inpCt.GetCommit(build, "INDEX"),
-						ToHash:  inpCt.GetCommit(build, "TO_HASH"),
-						NBytes:  inpCt.GetCommit(build, "NBYTES"),
-						Limbs:   []ifaces.Column{inpCt.GetCommit(build, "LIMBS")},
-					}},
-					PaddingStrategy: uc.UseCase,
-				}
-
-				mod = ImportAndPad(build.CompiledIOP, inp, 64)
-
-			}, dummy.Compile)
-
-			proof := wizard.Prove(comp, func(run *wizard.ProverRuntime) {
-
-				inpCt.Assign(run,
-					"HASH_NUM",
-					"INDEX",
-					"TO_HASH",
-					"NBYTES",
-					"LIMBS",
-				)
-
-				mod.Run(run)
-
-				toCheck := []string{
-					string(mod.HashNum.GetColID()),
-					string(mod.Index.GetColID()),
-					string(mod.IsActive.GetColID()),
-					string(mod.IsInserted.GetColID()),
-					string(mod.IsPadded.GetColID()),
-					string(mod.NBytes.GetColID()),
-					string(mod.AccPaddedBytes.GetColID()),
-				}
-				for i := range mod.Limbs {
-					toCheck = append(toCheck, string(mod.Limbs[i].GetColID()))
-				}
-
-				modCt.CheckAssignment(run, toCheck...)
-
-				if uc.PaddingFunc != nil {
-					checkPaddingAssignment(t, run, uc.PaddingFunc, mod)
-				}
-			})
-
-			if err := wizard.Verify(comp, proof); err != nil {
-				t.Fatal("proof failed", err)
-			}
-
-			t.Log("proof succeeded")
-
-		})
-	}
-}
-
-func TestImportAndPadSeveralLimbs(t *testing.T) {
-	var testCases = []struct {
-		Name        string
-		ModFilePath string
-		UseCase     generic.HashingUsecase
-		PaddingFunc func(stream []byte) []byte
 	}{
 		{
 			Name:        "Keccak",
@@ -109,7 +31,7 @@ func TestImportAndPadSeveralLimbs(t *testing.T) {
 		},
 		{
 			Name:        "Sha2",
-			ModFilePath: "testdata/multi_cols_mod_sha2.csv",
+			ModFilePath: "testdata/mod_sha2.csv",
 			UseCase:     generic.Sha2Usecase,
 			PaddingFunc: sha2.PadStream,
 		},
@@ -126,7 +48,7 @@ func TestImportAndPadSeveralLimbs(t *testing.T) {
 			var (
 				inp   ImportAndPadInputs
 				mod   *importation
-				inpCt = csvtraces.MustOpenCsvFile("testdata/multi_cols_input.csv")
+				inpCt = csvtraces.MustOpenCsvFile("testdata/input.csv")
 				modCt = csvtraces.MustOpenCsvFile(uc.ModFilePath)
 			)
 
