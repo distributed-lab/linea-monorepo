@@ -15,6 +15,10 @@ import (
 // available through other means.
 type mimcPadder struct{}
 
+func (mimcPadder) newBuilder() padderAssignmentBuilder {
+	return &mimcPadderAssignmentBuilder{}
+}
+
 type mimcPadderAssignmentBuilder struct{}
 
 // newMimcPadder creates the constraints ensuring that the zero-padding and
@@ -59,7 +63,7 @@ func (sp mimcPadder) pushPaddingRows(byteStringSize int, ipad *importationAssign
 		remainToPad -= currNbBytes
 
 		ipad.pushPaddingCommonColumns()
-		ipad.Limbs.PushZero()
+		ipad.Limbs[0].PushZero()
 		ipad.NBytes.PushInt(currNbBytes)
 		ipad.AccPaddedBytes.PushInt(accPaddedBytes)
 	}

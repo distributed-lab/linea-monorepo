@@ -13,6 +13,10 @@ import (
 // because it does not need to create extra columns.
 type keccakPadder struct{}
 
+func (keccakPadder) newBuilder() padderAssignmentBuilder {
+	return &keccakPadderAssignmentBuilder{}
+}
+
 // newKeccakPadder declare all the constraints ensuring the imported byte strings
 // are properly padded following the spec of the keccak hash function.
 func (iPadd *importation) newKeccakPadder(comp *wizard.CompiledIOP) padder {
@@ -24,8 +28,9 @@ func (iPadd *importation) newKeccakPadder(comp *wizard.CompiledIOP) padder {
 	//  the constraints over NBytes also guarantees the correct number of  padded zeroes.
 
 	var (
-		dsv = sym.NewConstant(leftAlign(1, 1))   // domain separator value, for padding
-		fpv = sym.NewConstant(leftAlign(128, 1)) // final padding value
+		nbLimbs = len(iPadd.Limbs)
+		dsv     = sym.NewConstant(leftAlignLimb(1, 1, nbLimbs))   // domain separator value, for padding
+		fpv     = sym.NewConstant(leftAlignLimb(128, 1, nbLimbs)) // final padding value
 	)
 
 	var (
@@ -93,6 +98,7 @@ func (iPadd *importation) newKeccakPadder(comp *wizard.CompiledIOP) padder {
 func (kp keccakPadder) pushPaddingRows(byteStringSize int, iPadd *importationAssignmentBuilder) {
 
 	var (
+		nbLimbs     = len(iPadd.Limbs)
 		blocksize   = generic.KeccakUsecase.BlockSizeBytes()
 		remainToPad = blocksize - (byteStringSize % blocksize)
 	)
@@ -103,14 +109,14 @@ func (kp keccakPadder) pushPaddingRows(byteStringSize int, iPadd *importationAss
 
 	if remainToPad == 1 {
 		iPadd.pushPaddingCommonColumns()
-		iPadd.Limbs.PushField(leftAlign(129, 1))
+		iPadd.Limbs[0].PushField(leftAlignLimb(129, 1, nbLimbs))
 		iPadd.NBytes.PushOne()
 		iPadd.AccPaddedBytes.PushOne()
 		return
 	}
 
 	iPadd.pushPaddingCommonColumns()
-	iPadd.Limbs.PushField(leftAlign(1, 1))
+	iPadd.Limbs[0].PushField(leftAlignLimb(1, 1, nbLimbs))
 	iPadd.NBytes.PushOne()
 	iPadd.AccPaddedBytes.PushOne()
 	remainToPad--
@@ -119,13 +125,13 @@ func (kp keccakPadder) pushPaddingRows(byteStringSize int, iPadd *importationAss
 		currNbBytes := utils.Min(remainToPad-1, 16)
 		remainToPad -= currNbBytes
 		iPadd.pushPaddingCommonColumns()
-		iPadd.Limbs.PushZero()
+		iPadd.Limbs[0].PushZero()
 		iPadd.NBytes.PushInt(currNbBytes)
 		iPadd.AccPaddedBytes.PushIncBy(currNbBytes)
 	}
 
 	iPadd.pushPaddingCommonColumns()
-	iPadd.Limbs.PushField(leftAlign(128, 1))
+	iPadd.Limbs[0].PushField(leftAlignLimb(128, 1, nbLimbs))
 	iPadd.NBytes.PushOne()
 	iPadd.AccPaddedBytes.PushInc()
 }
