@@ -280,7 +280,7 @@ func testAddColToLimbs(t *testing.T, tc testCase) {
 			}
 		}
 
-		_, pa = NewAddColToLimbs(comp, &AddColToLimbsIn{
+		_, pa = NewMultiLimbAdd(comp, &MultiLimbAddIn{
 			Name:   tc.name,
 			ALimbs: aLimbs,
 			BLimbs: bLimbs,

@@ -237,7 +237,7 @@ func (ipad *importation) newSha2Padder(comp *wizard.CompiledIOP) padder {
 		)
 	}
 
-	_, pad.accInsertedPlusNbBits = byte32cmp.NewAddColToLimbs(comp, &byte32cmp.AddColToLimbsIn{
+	_, pad.accInsertedPlusNbBits = byte32cmp.NewMultiLimbAdd(comp, &byte32cmp.MultiLimbAddIn{
 		Name:   fmt.Sprintf("%v_SHA2_ACC_INSERTED_BITS_PLUS_NB_BITS", ipad.Inputs.Name),
 		ALimbs: pad.AccInsertedBits.Shift(-1),
 		BLimbs: byte32cmp.LimbColumns{

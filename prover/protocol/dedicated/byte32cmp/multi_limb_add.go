@@ -10,8 +10,8 @@ import (
 	commonconstraints "github.com/consensys/linea-monorepo/prover/zkevm/prover/common/common_constraints"
 )
 
-// AddColToLimbsIn is the input structure for the AddColToLimbs operation.
-type AddColToLimbsIn struct {
+// MultiLimbAddIn is the input structure for the MultiLimbAdd operation.
+type MultiLimbAddIn struct {
 	// Name is a unique prefix for the operation.
 	Name string
 	// ALimbs is the LimbColumns object representing the "a" operand.
@@ -31,7 +31,7 @@ type AddColToLimbsIn struct {
 	NoBoundCancel bool
 }
 
-// AddColToLimbs is a module that constraints the addition of a column to a
+// MultiLimbAdd is a module that constraints the addition of a column to a
 // LimbColumns. It takes a LimbColumns object representing the "a" operand, a column
 // "b" to be added, and produces a new LimbColumns object representing the result of
 // the addition. It also computes the carry bits for each limb, which are stored in
@@ -51,7 +51,7 @@ type AddColToLimbsIn struct {
 //	res0                   = a0 + b0 + carry0
 //
 // res_i, res_j, b in [0, base)
-type AddColToLimbs struct {
+type MultiLimbAdd struct {
 	// name stores a unique prefix for the operation.
 	name string
 	// aLimbs stores the list of the columns, each one storing a part of the "a" operand.
@@ -72,22 +72,22 @@ type AddColToLimbs struct {
 	noBoundCancel bool
 }
 
-// NewAddColToLimbs creates a new AddColToLimbs module. It return the LimbColumns
+// NewMultiLimbAdd creates a new MultiLimbAdd module. It return the LimbColumns
 // representing the result of the addition and a wizard.ProverAction that should be run.
 //
 // If the result columns are provided in input, then the same columns are returned
 // and no new are created.
-func NewAddColToLimbs(comp *wizard.CompiledIOP, inp *AddColToLimbsIn) (LimbColumns, wizard.ProverAction) {
+func NewMultiLimbAdd(comp *wizard.CompiledIOP, inp *MultiLimbAddIn) (LimbColumns, wizard.ProverAction) {
 	if !inp.ALimbs.IsBigEndian {
-		utils.Panic("AddColToLimbs only supports big-endian limbs")
+		utils.Panic("MultiLimbAdd only supports big-endian limbs")
 	}
 
 	if len(inp.ALimbs.Limbs) < len(inp.BLimbs.Limbs) {
-		utils.Panic("AddColToLimbs: aLimbs must have at least as many limbs as bLimbs")
+		utils.Panic("MultiLimbAdd: aLimbs must have at least as many limbs as bLimbs")
 	}
 
 	if len(inp.ALimbs.Limbs) == 0 {
-		utils.Panic("AddColToLimbs: aLimbs must have at least one limb")
+		utils.Panic("MultiLimbAdd: aLimbs must have at least one limb")
 	}
 
 	numRows := ifaces.AssertSameLength(append(inp.ALimbs.Limbs, inp.BLimbs.Limbs...)...)
@@ -104,7 +104,7 @@ func NewAddColToLimbs(comp *wizard.CompiledIOP, inp *AddColToLimbsIn) (LimbColum
 		}
 	}
 
-	res := &AddColToLimbs{
+	res := &MultiLimbAdd{
 		name:       inp.Name,
 		aLimbs:     inp.ALimbs,
 		bLimbs:     inp.BLimbs,
@@ -128,7 +128,7 @@ func NewAddColToLimbs(comp *wizard.CompiledIOP, inp *AddColToLimbsIn) (LimbColum
 	return result, res
 }
 
-func (m *AddColToLimbs) csRangeChecks(comp *wizard.CompiledIOP) {
+func (m *MultiLimbAdd) csRangeChecks(comp *wizard.CompiledIOP) {
 	for i := range m.carry.Limbs {
 		commonconstraints.MustBeBinary(comp, m.carry.Limbs[i])
 	}
@@ -152,7 +152,7 @@ func (m *AddColToLimbs) csRangeChecks(comp *wizard.CompiledIOP) {
 	}
 }
 
-func (m *AddColToLimbs) csAddition(comp *wizard.CompiledIOP) {
+func (m *MultiLimbAdd) csAddition(comp *wizard.CompiledIOP) {
 	limbMax := field.NewElement(uint64(1) << m.aLimbs.LimbBitSize)
 	lastLimbIdx := len(m.aLimbs.Limbs) - 1
 
@@ -237,7 +237,7 @@ func (m *AddColToLimbs) csAddition(comp *wizard.CompiledIOP) {
 
 // Run executes the addition of a column to the limbs, assigning the
 // results to the result and carry columns.
-func (m *AddColToLimbs) Run(run *wizard.ProverRuntime) {
+func (m *MultiLimbAdd) Run(run *wizard.ProverRuntime) {
 	aLimbs := make([][]field.Element, len(m.aLimbs.Limbs))
 	for i := range m.aLimbs.Limbs {
 		aLimbs[i] = m.aLimbs.Limbs[i].GetColAssignment(run).IntoRegVecSaveAlloc()
