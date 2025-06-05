@@ -1,11 +1,9 @@
-package splitter
+package common
 
 import "github.com/consensys/linea-monorepo/prover/maths/field"
 
 // LimbBytes is the size of one limb in bytes
 const LimbBytes = 2
-
-// TODO: move to the common file
 
 // SplitElement splits the input field element into subarrays of the provided size.
 func SplitElement(element field.Element) []field.Element {
