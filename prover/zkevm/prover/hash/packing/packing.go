@@ -7,13 +7,14 @@ import (
 	"github.com/consensys/linea-monorepo/prover/protocol/column/verifiercol"
 	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
+	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/hash/generic"
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/hash/packing/dedicated/spaghettifier"
 )
 
 const (
-	MAXNBYTE       = 16
-	LEFT_ALIGNMENT = 16
+	MAXNBYTE       = (field.Bytes - generic.TotalLimbSize) / common.NbLimbU128
+	LEFT_ALIGNMENT = MAXNBYTE
 
 	POWER8 = 1 << 8
 )
@@ -30,9 +31,9 @@ const (
 
 // Importaion implements the set of required columns for launching the Packing module.
 type Importation struct {
-	// The set of the limbs that are subject to Packing (i.e., should be  pushed into the pack).
-	// Limbs are 16 bytes, left aligned.
-	Limb ifaces.Column
+	// The set of the limbs that are subject to Packing (i.e., should be pushed into the pack).
+	// Limbs are 2 bytes, left aligned. Columns from this slice represent 128 bit limbs if concatenated.
+	Limb []ifaces.Column
 	// It is 1 if the associated limb is the first limb of the new hash.
 	IsNewHash ifaces.Column
 	// NByte is the meaningful length of limbs in byte.
@@ -63,7 +64,6 @@ type Packing struct {
 
 	// submodules
 	Cleaning   cleaningCtx
-	LookUps    lookUpTables
 	Decomposed decomposition
 	// it stores the result of the Packing
 	// limbs are repacked in Lane column.
@@ -86,9 +86,9 @@ func NewPack(comp *wizard.CompiledIOP, inp PackingInput) *Packing {
 	var (
 		isNewHash  = inp.Imported.IsNewHash
 		lookup     = NewLookupTables(comp)
-		cleaning   = NewClean(comp, newCleaningInputs(inp.Imported, lookup, inp.Name))
-		decomposed = newDecomposition(comp, getDecompositionInputs(cleaning, inp))
-		spaghetti  = spaghettiMaker(comp, decomposed, isNewHash)
+		decomposed = newDecomposition(comp, getDecompositionInputs(inp, lookup))
+		cleaning   = NewClean(comp, newCleaningInputs(decomposed))
+		spaghetti  = spaghettiMaker(comp, cleaning, isNewHash)
 		lanes      = newLane(comp, spaghetti, inp)
 		block      = newBlock(comp, getBlockInputs(lanes, inp.PackingParam))
 	)
@@ -115,50 +115,53 @@ func (pck *Packing) Run(run *wizard.ProverRuntime) {
 // it stores the inputs /outputs of spaghettifier used in the Packing module.
 type spaghettiCtx struct {
 	// ContentSpaghetti
-	decLimbSp, decLenSp, decLenPowerSp ifaces.Column
-	newHashSp                          ifaces.Column
+	cleanLimbSp, decLenSp, decLenPowerSp, shiftSp ifaces.Column
+	newHashSp                                     ifaces.Column
+	// keep columns from decomposed step
+	decomposedLen []ifaces.Column
 	// FilterSpaghetti
 	filterSpaghetti ifaces.Column
 	pa              wizard.ProverAction
 	spaghettiSize   int
 }
 
-func spaghettiMaker(comp *wizard.CompiledIOP, decomposed decomposition, isNewHash ifaces.Column) spaghettiCtx {
+func spaghettiMaker(comp *wizard.CompiledIOP, cleaned cleaningCtx, isNewHash ifaces.Column) spaghettiCtx {
 
 	var (
 		isNewHashTable []ifaces.Column
-		size           = decomposed.size
+		size           = cleaned.Inputs.decomposed.size
 		zeroCol        = verifiercol.NewConstantCol(field.Zero(), size)
 	)
 
 	// build isNewHash
 	isNewHashTable = append(isNewHashTable, isNewHash)
-	for i := 1; i < decomposed.nbSlices; i++ {
+	for i := 1; i < len(cleaned.Inputs.decomposed.Inputs.imported.Limb); i++ {
 		isNewHashTable = append(isNewHashTable, zeroCol)
 	}
 
 	// Constraints over the spaghetti forms
 	inp := spaghettifier.SpaghettificationInput{
-		Name: decomposed.Inputs.Name,
+		Name: cleaned.Inputs.decomposed.Inputs.Name,
 		ContentMatrix: [][]ifaces.Column{
-			decomposed.decomposedLimbs,
-			decomposed.decomposedLen,
-			decomposed.decomposedLenPowers,
+			cleaned.CleanLimb,
+			cleaned.Inputs.decomposed.decomposedLen,
+			cleaned.Inputs.decomposed.decomposedLenPowers,
 			isNewHashTable,
 		},
-		Filter:        decomposed.filter,
-		SpaghettiSize: decomposed.size,
+		Filter:        cleaned.Inputs.decomposed.filter,
+		SpaghettiSize: cleaned.Inputs.decomposed.size,
 	}
 	// declare ProverAction for Spaghettification
 	pa := spaghettifier.Spaghettify(comp, inp)
 
 	s := spaghettiCtx{
 		pa:              pa,
-		decLimbSp:       pa.ContentSpaghetti[0],
+		cleanLimbSp:     pa.ContentSpaghetti[0],
 		decLenSp:        pa.ContentSpaghetti[1],
 		decLenPowerSp:   pa.ContentSpaghetti[2],
 		newHashSp:       pa.ContentSpaghetti[3],
-		spaghettiSize:   decomposed.size,
+		decomposedLen:   cleaned.Inputs.decomposed.decomposedLen,
+		spaghettiSize:   cleaned.Inputs.decomposed.size,
 		filterSpaghetti: pa.FilterSpaghetti,
 	}
 

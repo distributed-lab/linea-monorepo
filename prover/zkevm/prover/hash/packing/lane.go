@@ -130,7 +130,7 @@ func (l *laneRepacking) csRecomposeToLanes(comp *wizard.CompiledIOP, s spaghetti
 	//ipTaker[i] = (decomposedLimbs[i] * coeff[i]) + ipTracker[i+1]* (1- isLaneComplete[i+1])
 	// Constraints on the Partitioned Inner-Products
 	ipTracker := dedicated.InsertPartitionedIP(comp, l.Inputs.pckInp.Name+"_PIP_For_LaneRePacking",
-		s.decLimbSp,
+		s.cleanLimbSp,
 		l.coeff,
 		l.isLaneComplete,
 	)
@@ -240,12 +240,17 @@ func (l *laneRepacking) getBlocks(run *wizard.ProverRuntime, inp PackingInput) (
 		ctr       = 0
 		blockSize = inp.PackingParam.BlockSizeBytes()
 		imported  = inp.Imported
-		limbs     = smartvectors.Window(imported.Limb.GetColAssignment(run))
+		limbs     = make([][]field.Element, len(imported.Limb))
+		decLen    = make([][]field.Element, len(l.Inputs.spaghetti.decomposedLen))
 		nBytes    = smartvectors.Window(imported.NByte.GetColAssignment(run))
 		isNewHash = smartvectors.Window(imported.IsNewHash.GetColAssignment(run))
 	)
 
-	limbSerialized := [32]byte{}
+	for i := range limbs {
+		limbs[i] = smartvectors.Window(imported.Limb[i].GetColAssignment(run))
+		decLen[i] = smartvectors.Window(l.Inputs.spaghetti.decomposedLen[i].GetColAssignment(run))
+	}
+
 	var stream []byte
 	var block [][]byte
 	var isFirstBlockOfHash []int
@@ -254,10 +259,17 @@ func (l *laneRepacking) getBlocks(run *wizard.ProverRuntime, inp PackingInput) (
 		nbyte := field.ToInt(&nBytes[pos])
 		s = s + nbyte
 
-		// Extract the limb, which is left aligned to the 16-th byte
-		limbSerialized = limbs[pos].Bytes()
+		// Serialize the limb value from 8 left-aligned 2-byte values into one "nbyte" byte array
+		var usefulByte []byte
+		for i := range len(limbs) {
+			limbNByte := field.ToInt(&decLen[i][pos])
+			limbBytes := limbs[i][pos].Bytes()
+			usefulByte = append(usefulByte, limbBytes[LEFT_ALIGNMENT:LEFT_ALIGNMENT+limbNByte]...)
+		}
 
-		usefulByte := limbSerialized[LEFT_ALIGNMENT : LEFT_ALIGNMENT+nbyte]
+		// SANITY CHECK
+		utils.Require(len(usefulByte) == nbyte, "invalid length of usefulByte")
+
 		if s > blockSize || s == blockSize {
 			// extra part that should be moved to the next block
 			s = s - blockSize

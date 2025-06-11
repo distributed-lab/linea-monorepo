@@ -29,17 +29,25 @@ func makeTestCaseCleaningModule(uc generic.HashingUsecase) (
 	)
 
 	imported := Importation{}
+	decomposition := decomposition{}
 	cleaning := cleaningCtx{}
 
 	define = func(build *wizard.Builder) {
 		comp := build.CompiledIOP
 		imported = createImportationColumns(comp, size)
 		lookup := NewLookupTables(comp)
-		cleaning = NewClean(comp, newCleaningInputs(imported, lookup, "TEST"))
+		packingInput := PackingInput{
+			MaxNumBlocks: maxNumBlock,
+			PackingParam: uc,
+			Imported:     imported,
+			Name:         "Cleaning_TEST",
+		}
+		decomposition = newDecomposition(comp, getDecompositionInputs(packingInput, lookup))
+		cleaning = NewClean(comp, newCleaningInputs(decomposition))
 	}
 	prover = func(run *wizard.ProverRuntime) {
 		var (
-			imported = cleaning.Inputs.imported
+			imported = cleaning.Inputs.decomposed.Inputs.imported
 		)
 		// assign the importation columns
 		assignImportationColumns(run, &imported, numHash, blockSize, size)

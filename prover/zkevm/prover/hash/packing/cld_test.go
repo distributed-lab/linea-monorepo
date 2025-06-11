@@ -4,10 +4,8 @@ import (
 	"testing"
 
 	"github.com/consensys/linea-monorepo/prover/protocol/compiler/dummy"
-	"github.com/consensys/linea-monorepo/prover/protocol/distributed/pragmas"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
 	"github.com/consensys/linea-monorepo/prover/utils"
-	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/hash/generic"
 	"github.com/stretchr/testify/assert"
 )
@@ -31,34 +29,24 @@ func makeTestCaseCLDModule(uc generic.HashingUsecase) (
 	)
 
 	imported := Importation{}
-	ctx := cleaningCtx{}
 	decomposed := decomposition{}
 
 	define = func(build *wizard.Builder) {
 		comp := build.CompiledIOP
 		imported = createImportationColumns(comp, size)
 
-		createCol := common.CreateColFn(comp, CLEANING, imported.Limb.Size(), pragmas.RightPadded)
-		ctx = cleaningCtx{
-			CleanLimb: createCol("CleanLimb"),
-			Inputs: &cleaningInputs{
-				imported: imported,
-				lookup:   NewLookupTables(comp)},
-		}
-
 		inp := decompositionInputs{
-			param:       uc,
-			cleaningCtx: ctx,
+			param:    uc,
+			Name:     "Decomposition",
+			lookup:   NewLookupTables(comp),
+			imported: imported,
 		}
-
 		decomposed = newDecomposition(comp, inp)
 	}
 	prover = func(run *wizard.ProverRuntime) {
 		// assign the importation columns
 		assignImportationColumns(run, &imported, numHash, blockSize, size)
 
-		// assign all the Packing module.
-		ctx.assignCleanLimbs(run)
 		decomposed.Assign(run)
 	}
 	return define, prover
