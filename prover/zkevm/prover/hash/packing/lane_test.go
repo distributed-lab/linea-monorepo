@@ -6,6 +6,7 @@ import (
 	"github.com/consensys/linea-monorepo/prover/maths/field"
 	"github.com/consensys/linea-monorepo/prover/protocol/compiler/dummy"
 	"github.com/consensys/linea-monorepo/prover/protocol/distributed/pragmas"
+	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
 	"github.com/consensys/linea-monorepo/prover/utils"
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
@@ -32,7 +33,6 @@ func makeTestCaseLaneRepacking(uc generic.HashingUsecase) (
 	)
 
 	imported := Importation{}
-	cleaning := cleaningCtx{}
 	decomposed := decomposition{}
 	spaghetti := spaghettiCtx{}
 	l := laneRepacking{}
@@ -49,21 +49,19 @@ func makeTestCaseLaneRepacking(uc generic.HashingUsecase) (
 		}
 
 		createCol := common.CreateColFn(comp, "TEST_SPAGHETTI", size, pragmas.RightPadded)
-		cleaning = cleaningCtx{
-			CleanLimb: createCol("CleanLimb"),
-			Inputs:    &cleaningInputs{imported: imported},
-		}
-
 		inp := &decompositionInputs{
-			param:       pckInp.PackingParam,
-			cleaningCtx: cleaning,
+			param: pckInp.PackingParam,
 		}
 
 		decomposed = decomposition{
-			Inputs:   inp,
-			size:     size,
-			nbSlices: maxLanesFromLimbs(inp.param.LaneSizeBytes()),
-			maxLen:   inp.param.LaneSizeBytes(),
+			Inputs: inp,
+			size:   size,
+			maxLen: inp.param.LaneSizeBytes(),
+		}
+
+		cleanedLimbs := make([]ifaces.Column, common.NbLimbU128)
+		for i := range cleanedLimbs {
+			cleanedLimbs[i] = createCol("CleanLimb_%d", i)
 		}
 
 		// commit to decomposition Columns; no constraint
@@ -79,7 +77,6 @@ func makeTestCaseLaneRepacking(uc generic.HashingUsecase) (
 
 		// assign importation columns
 		assignImportationColumns(run, &imported, numHash, blockSize, size)
-		cleaning.assignCleanLimbs(run)
 		decomposed.assignMainColumns(run)
 		// assign filter
 		assignFilter(run, decomposed)
@@ -102,7 +99,7 @@ func TestLaneRepacking(t *testing.T) {
 func assignFilter(run *wizard.ProverRuntime, decomposed decomposition) {
 	var (
 		size   = decomposed.size
-		filter = make([]*common.VectorBuilder, decomposed.nbSlices)
+		filter = make([]*common.VectorBuilder, nbDecomposedLen)
 	)
 	for j := range decomposed.decomposedLen {
 		filter[j] = common.NewVectorBuilder(decomposed.filter[j])
