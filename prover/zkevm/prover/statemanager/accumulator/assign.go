@@ -323,7 +323,6 @@ func (am *Module) assignLeaf(
 		run.AssignColumn(cols.LeafOpenings.HKey[i].GetColID(), smartvectors.RightZeroPadded(builder.leafOpening.hKey[i], paddedSize))
 		run.AssignColumn(cols.LeafOpenings.HVal[i].GetColID(), smartvectors.RightZeroPadded(builder.leafOpening.hVal[i], paddedSize))
 	}
-	println()
 }
 
 func (am *Module) assignTopRootCols(
