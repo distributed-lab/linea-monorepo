@@ -152,7 +152,7 @@ func (decomposed *decomposition) csDecomposLen(
 //
 // - (decomposedLimbs[0] * 2^8 + carry[0] - Limbs[0]) * decompositionHappened == 0 // base case
 // - (decomposedLimbs[i] * 2^8 + carry[i] - Limbs[i] - carry[i-1] * 2^16) * decompositionHappened == 0 // for i > 0
-// - carry[last-1] - decomposedLimbs[last] * 2^8 == 0
+// - (carry[last-1] - decomposedLimbs[last] * 2^8) * decompositionHappened == 0
 func (decomposed decomposition) csDecomposedLimbs(
 	comp *wizard.CompiledIOP,
 	imported Importation,
@@ -194,9 +194,12 @@ func (decomposed decomposition) csDecomposedLimbs(
 
 	// Last column
 	comp.InsertGlobal(0, ifaces.QueryIDf("%v_DecomposedLimbs_Last", decomposed.Inputs.Name),
-		sym.Sub(
-			carry[last-1],
-			sym.Mul(decomposedLimbs[last], sym.NewConstant(POWER8)),
+		sym.Mul(
+			sym.Sub(
+				carry[last-1],
+				sym.Mul(decomposedLimbs[last], sym.NewConstant(POWER8)),
+			),
+			decompositionHappened,
 		),
 	)
 }
