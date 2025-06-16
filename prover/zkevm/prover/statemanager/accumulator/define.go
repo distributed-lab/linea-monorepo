@@ -680,11 +680,11 @@ func (am *Module) checkLeafHashes() {
 	cols := am.Cols
 
 	for i := 0; i < common.NbLimbU256; i++ {
-		// TODO (nazarevsky)
+		// TODO: fix MiMC query
 		//am.comp.InsertMiMC(am.Round, am.qname("MIMC_PREV_%d", i), cols.LeafOpenings.Prev, cols.Zero, cols.Interm[i][0], nil)
 		//am.comp.InsertMiMC(am.Round, am.qname("MIMC_NEXT_%d", i), cols.LeafOpenings.Next, cols.Interm[i][0], cols.Interm[i][1], nil)
 
-		// TODO (nazarevsky)
+		// TODO: fix MiMC query
 		//am.comp.InsertMiMC(am.Round, am.qname("MIMC_HKEY"), cols.LeafOpenings.HKey, cols.Interm[1], cols.Interm[2], nil)
 		//am.comp.InsertMiMC(am.Round, am.qname("MIMC_HVAL_LEAF_%d", i), cols.LeafOpenings.HVal, cols.Interm[2], cols.LeafHashes[i], nil)
 
@@ -795,7 +795,7 @@ func (am *Module) checkNextFreeNode() {
 }
 
 func (am *Module) checkTopRootHash() {
-	// TODO (nazarevsky)
+	// TODO: fix MiMC query
 	//cols := am.Cols
 	//
 	//for i := 0; i < common.NbLimbU256; i++ {
