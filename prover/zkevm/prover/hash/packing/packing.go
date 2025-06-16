@@ -132,7 +132,7 @@ func spaghettiMaker(comp *wizard.CompiledIOP, decomposed decomposition, isNewHas
 
 	// build isNewHash
 	isNewHashTable = append(isNewHashTable, isNewHash)
-	for i := 1; i < len(decomposed.Inputs.imported.Limb); i++ {
+	for i := 1; i < nbDecomposedLen; i++ {
 		isNewHashTable = append(isNewHashTable, zeroCol)
 	}
 

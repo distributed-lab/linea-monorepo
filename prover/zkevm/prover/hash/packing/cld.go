@@ -88,7 +88,7 @@ func newDecomposition(comp *wizard.CompiledIOP, inp decompositionInputs) decompo
 	// Declare the columns
 	decomposed.insertCommit(comp)
 
-	for j := 0; j < len(inp.imported.Limb); j++ {
+	for j := range nbDecomposedLen {
 		// since they are later used for building the  decomposed.filter.
 		commonconstraints.MustZeroWhenInactive(comp, decomposed.isActive, decomposed.decomposedLen[j])
 		// this guarantees that filter and decompodedLimbs full fill the same constrains.
@@ -136,7 +136,7 @@ func (decomposed *decomposition) csDecomposLen(
 	lu := decomposed.Inputs.lookup
 	// The rows of decomposedLen adds up to NByte; \sum_i decomposedLen[i]=NByte
 	s := sym.NewConstant(0)
-	for j := range decomposed.decomposedLen {
+	for j := range decomposed.decomposedLimbs {
 		s = sym.Add(s, decomposed.decomposedLen[j])
 
 		// Equivalence of "decomposedLenPowers" with "2^(decomposedLen * 8)"
@@ -304,7 +304,7 @@ func (decomposed *decomposition) assignMainColumns(run *wizard.ProverRuntime) {
 	// assign decomposedLenPowers
 	for j := range decomposedLen {
 		decomposedLenPowers := make([]field.Element, len(decomposedLen[j]))
-		for i := range decomposedLen[0] {
+		for i := range decomposedLen[j] {
 			decomLen := field.ToInt(&decomposedLen[j][i])
 			decomposedLenPowers[i] = powersOf256[decomLen]
 		}

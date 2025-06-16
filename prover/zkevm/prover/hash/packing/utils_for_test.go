@@ -215,6 +215,6 @@ func assignImportationColumns(run *wizard.ProverRuntime, imported *Importation, 
 	}
 
 	run.AssignColumn(imported.IsActive.GetColID(),
-		smartvectors.RightZeroPadded(vector.Repeat(field.One(), len(t.limb)), targetSize))
+		smartvectors.RightZeroPadded(vector.Repeat(field.One(), len(t.limb[0])), targetSize))
 
 }
