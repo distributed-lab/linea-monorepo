@@ -117,12 +117,10 @@ func (p *FlatProof) Unpack(run ifaces.Runtime, pos smartvectors.SmartVector) []s
 			for _, limbCol := range p.Nodes {
 				element := limbCol[n].GetColAssignmentAt(run, i)
 				elementBytes := element.Bytes()
-				siblingLimbBytes = append(siblingLimbBytes, elementBytes[32-common.LimbBytes:]...)
+				siblingLimbBytes = append(siblingLimbBytes, elementBytes[field.Bytes-common.LimbBytes:]...)
 			}
 
-			var sibling field.Element
-			sibling.SetBytes(siblingLimbBytes)
-			newProof.Siblings[n].SetField(sibling)
+			copy(newProof.Siblings[n][:], siblingLimbBytes)
 		}
 
 		proofs = append(proofs, newProof)
