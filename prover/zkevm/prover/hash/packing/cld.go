@@ -151,8 +151,8 @@ func (decomposed *decomposition) csDecomposLen(
 // Constraints over the form of decomposedLimbs;
 //
 // - (decomposedLimbs[0] * 2^8 + carry[0] - Limbs[0]) * decompositionHappened == 0 // base case
-// - (decomposedLimbs[i] * 2^8 + carry[i] - Limbs[i] - carry[i-1] * 2^16) * decompositionHappened == 0 // for i > 0
-// - (carry[last-1] - decomposedLimbs[last] * 2^8) * decompositionHappened == 0
+// - (decomposedLimbs[i] * 2^8 + carry[i] - Limbs[i] - carry[i-1] * decomposedLenPowers[i]) * decompositionHappened == 0 // for i > 0
+// - (decomposedLimbs[last] * 2^8 - carry[last-1]) * decompositionHappened == 0
 func (decomposed decomposition) csDecomposedLimbs(
 	comp *wizard.CompiledIOP,
 	imported Importation,
@@ -182,11 +182,11 @@ func (decomposed decomposition) csDecomposedLimbs(
 			sym.Mul(
 				sym.Sub(
 					sym.Add(
-						sym.Mul(decomposedLimbs[i], sym.NewConstant(POWER16)),
+						sym.Mul(decomposedLimbs[i], sym.NewConstant(POWER8)),
 						carry[i],
 					),
 					limbs[i],
-					sym.Mul(carry[i-1], sym.NewConstant(POWER16)),
+					sym.Mul(carry[i-1], decomposed.decomposedLenPowers[i]),
 				),
 				decompositionHappened,
 			))
@@ -478,7 +478,7 @@ func decomposeLimbsAndCarry(limbs, decomposedLen [][]field.Element, nbytes [][]i
 
 			// carry is always the last byte of the original limb if nbyte is 2
 			if nbytes[i][row] == 2 {
-				carry[i][row].SetBytes(meaningful[len(meaningful)-1:])
+				carry[i][row].SetBytes([]byte{meaningful[len(meaningful)-1]})
 			}
 		}
 
@@ -486,11 +486,7 @@ func decomposeLimbsAndCarry(limbs, decomposedLen [][]field.Element, nbytes [][]i
 		var taken uint64 = 0
 		for i := range nbDecomposedLen {
 			bytes := decomposedLen[i][row].Uint64()
-
-			var value field.Element
-			value.SetBytes(allMeaningfullBytes[taken : taken+bytes])
-
-			decomposedLimbs[i][row] = value
+			decomposedLimbs[i][row].SetBytes(allMeaningfullBytes[taken : taken+bytes])
 			taken += bytes
 		}
 	}
