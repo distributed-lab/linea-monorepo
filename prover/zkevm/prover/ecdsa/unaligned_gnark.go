@@ -186,7 +186,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			var txBts []byte
 			for _, txHighBtsRow := range rows[4*common.NbLimbU128 : 6*common.NbLimbU128] {
 				bytes := txHighBtsRow.Bytes()
-				txBts = append(txBts, bytes[30:]...)
+				txBts = append(txBts, bytes[field.Bytes-LimbBytes:]...)
 			}
 
 			copy(prehashedMsg[:], txBts[:])
@@ -194,7 +194,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			var vBts []byte
 			for _, vBtsRow := range rows[6*common.NbLimbU128 : 8*common.NbLimbU128] {
 				bytes := vBtsRow.Bytes()
-				vBts = append(vBts, bytes[30:]...)
+				vBts = append(vBts, bytes[field.Bytes-LimbBytes:]...)
 			}
 
 			v.SetBytes(vBts)
@@ -202,7 +202,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			var rBts []byte
 			for _, rBtsRow := range rows[8*common.NbLimbU128 : 10*common.NbLimbU128] {
 				bytes := rBtsRow.Bytes()
-				rBts = append(rBts, bytes[30:]...)
+				rBts = append(rBts, bytes[field.Bytes-LimbBytes:]...)
 			}
 
 			r.SetBytes(rBts)
@@ -210,7 +210,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			var sBts []byte
 			for _, sBtsRow := range rows[10*common.NbLimbU128 : 12*common.NbLimbU128] {
 				bytes := sBtsRow.Bytes()
-				sBts = append(sBts, bytes[30:]...)
+				sBts = append(sBts, bytes[field.Bytes-LimbBytes:]...)
 			}
 
 			s.SetBytes(sBts)
@@ -240,7 +240,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			var txBts []byte
 			for _, txHighBtsRow := range rows[4*common.NbLimbU128 : 6*common.NbLimbU128] {
 				bytes := txHighBtsRow.Bytes()
-				txBts = append(txBts, bytes[30:]...)
+				txBts = append(txBts, bytes[field.Bytes-LimbBytes:]...)
 			}
 
 			copy(prehashedMsg[:], txBts[:])
@@ -324,7 +324,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 		for j := 0; j < nbRowsPerGnarkPushing*common.NbLimbU128; j++ {
 			rowBytes := rows[j].Bytes()
 			bytes := [16]byte{}
-			copy(bytes[:], rowBytes[30:])
+			copy(bytes[:], rowBytes[field.Bytes-LimbBytes:])
 
 			var elementLA field.Element
 			elementLA.SetBytes(bytes[:])
