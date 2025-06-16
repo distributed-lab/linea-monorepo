@@ -106,7 +106,7 @@ func (bd *BitDecomposed) Run(run *wizard.ProverRuntime) {
 			el = append(el, elements[j][i])
 		}
 
-		x := common.CombineElements(el)
+		x := combineElements(el)
 
 		if !x.IsUint64() {
 			panic("can handle 64 bits at most")
@@ -135,4 +135,23 @@ func MustBeBoolean(comp *wizard.CompiledIOP, col ifaces.Column) {
 		col.Round(),
 		ifaces.QueryID(col.GetColID())+"_IS_BOOLEAN",
 		symbolic.Sub(col, symbolic.Mul(col, col)))
+}
+
+// combineElements combines an array of limb elements into a single element.
+//
+// It extracts a specific suffix of bytes from each field.Element
+// in the input slice and concatenates them into a single byte slice.
+// It then uses this concatenated byte slice to initialize and return a new
+// field.Element.
+func combineElements(elements []field.Element) field.Element {
+	var bytes []byte
+	for _, element := range elements {
+		elementBytes := element.Bytes()
+		bytes = append(bytes, elementBytes[len(elementBytes)-common.LimbBytes:]...)
+	}
+
+	var res field.Element
+	res.SetBytes(bytes)
+
+	return res
 }

@@ -218,8 +218,23 @@ func (mt *merkleTestBuilder) pushRow(row merkleTestBuilderRow) {
 
 	mt.proofs = append(mt.proofs, row.proof)
 
-	leafs := common.SplitElement(row.leaf.ToField())
-	roots := common.SplitElement(row.root.ToField())
+	leafBytes := common.SplitBytes(row.leaf[:])
+	rootBytes := common.SplitBytes(row.root[:])
+
+	var leafs []field.Element
+	var roots []field.Element
+
+	for i := range common.NbLimbU256 {
+		var leafElement field.Element
+		leafElement.SetBytes(leafBytes[i])
+
+		var rootElement field.Element
+		rootElement.SetBytes(rootBytes[i])
+
+		leafs = append(leafs, leafElement)
+		roots = append(roots, rootElement)
+	}
+
 	for i := range leafs {
 		mt.leaves[i] = append(mt.leaves[i], leafs[i])
 		mt.roots[i] = append(mt.roots[i], roots[i])

@@ -95,8 +95,6 @@ func CheckFlatMerkleProofs(comp *wizard.CompiledIOP, inputs FlatProofVerificatio
 			ifaces.QueryIDf("%v_ROOT_MATCH_%v", inputs.Name, i),
 			symbolic.Mul(inputs.IsActive, symbolic.Sub(prevNode[i], inputs.Roots[i])),
 		)
-
-		break
 	}
 
 	return ctx
