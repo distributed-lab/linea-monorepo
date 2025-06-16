@@ -87,10 +87,8 @@ func (txn *txSignature) GetProvider(comp *wizard.CompiledIOP, rlpTxn generic.Gen
 // it builds an infoModule from native columns
 func (txn *txSignature) buildInfoModule() generic.GenInfoModule {
 	info := generic.GenInfoModule{
-		HashHi:   txn.txHash[:common.NbLimbU128],
-		HashLo:   txn.txHash[common.NbLimbU128:],
-		IsHashHi: txn.isTxHash,
-		IsHashLo: txn.isTxHash,
+		Hash:   txn.txHash[:],
+		IsHash: txn.isTxHash,
 	}
 	return info
 }

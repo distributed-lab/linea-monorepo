@@ -48,7 +48,7 @@ func runTestSha2(t *testing.T, tc testCaseFile) {
 
 		inp = sha2BlocksInputs{
 			Name:                 "TESTING",
-			PackedUint32:         inpCt.GetCommit(build, "PACKED_DATA"),
+			PackedUint16:         inpCt.GetCommit(build, "PACKED_DATA"),
 			Selector:             inpCt.GetCommit(build, "SELECTOR"),
 			IsFirstLaneOfNewHash: inpCt.GetCommit(build, "IS_FIRST_LANE_OF_NEW_HASH"),
 			MaxNbBlockPerCirc:    tc.NbBlockLimit, // 1 more than in the csv

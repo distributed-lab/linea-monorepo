@@ -217,10 +217,8 @@ func (addr *Addresses) buildGenericModule(id ifaces.Column, uaGnark *UnalignedGn
 	}
 
 	pkModule.Info = generic.GenInfoModule{
-		HashHi:   addr.address[:addressHiColumns],
-		HashLo:   addr.address[addressHiColumns:],
-		IsHashHi: addr.isAddress,
-		IsHashLo: addr.isAddress,
+		Hash:   addr.address[:],
+		IsHash: addr.isAddress,
 	}
 	return pkModule
 }

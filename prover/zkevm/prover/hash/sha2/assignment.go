@@ -19,19 +19,23 @@ type sha2BlockHashingAssignment struct {
 	IsEffFirstLaneOfNewHash *common.VectorBuilder
 	IsEffLastLaneOfCurrHash *common.VectorBuilder
 	Limbs                   *common.VectorBuilder
-	HashHi, HashLo          *common.VectorBuilder
+	Hash                    [numLimbsPerState]*common.VectorBuilder
 }
 
 func newSha2BlockHashingAssignment(sbh *sha2BlockModule) sha2BlockHashingAssignment {
-	return sha2BlockHashingAssignment{
+	res := sha2BlockHashingAssignment{
 		IsActive:                common.NewVectorBuilder(sbh.IsActive),
 		IsEffBlock:              common.NewVectorBuilder(sbh.IsEffBlock),
 		IsEffFirstLaneOfNewHash: common.NewVectorBuilder(sbh.IsEffFirstLaneOfNewHash),
 		IsEffLastLaneOfCurrHash: common.NewVectorBuilder(sbh.IsEffLastLaneOfCurrHash),
 		Limbs:                   common.NewVectorBuilder(sbh.Limbs),
-		HashHi:                  common.NewVectorBuilder(sbh.HashHi),
-		HashLo:                  common.NewVectorBuilder(sbh.HashLo),
 	}
+
+	for i := range res.Hash {
+		res.Hash[i] = common.NewVectorBuilder(sbh.Hash[i])
+	}
+
+	return res
 }
 
 // Run implements the [wizard.ProverAction] interface.
@@ -40,7 +44,7 @@ func (sbh *sha2BlockModule) Run(run *wizard.ProverRuntime) {
 	var (
 		assi                 = newSha2BlockHashingAssignment(sbh)
 		isFirstLaneOfNewHash = sbh.Inputs.IsFirstLaneOfNewHash.GetColAssignment(run).IntoRegVecSaveAlloc()
-		packedUint32         = sbh.Inputs.PackedUint32.GetColAssignment(run).IntoRegVecSaveAlloc()
+		packedUint16         = sbh.Inputs.PackedUint16.GetColAssignment(run).IntoRegVecSaveAlloc()
 		selector             = sbh.Inputs.Selector.GetColAssignment(run).IntoRegVecSaveAlloc()
 		numRowInp            = len(isFirstLaneOfNewHash)
 		cursorInp            = 0
@@ -73,7 +77,7 @@ func (sbh *sha2BlockModule) Run(run *wizard.ProverRuntime) {
 				continue
 			}
 
-			blocks = append(blocks, packedUint32[cursorInp])
+			blocks = append(blocks, packedUint16[cursorInp])
 		}
 
 		return blocks
@@ -82,20 +86,20 @@ func (sbh *sha2BlockModule) Run(run *wizard.ProverRuntime) {
 	for cursorInp < numRowInp {
 
 		var (
-			currBlock    [16]field.Element
+			currBlock    [numLimbsPerBlock]field.Element
 			blocks       = scanCurrHash()
 			currState    = initializationVector
 			isFirstBlock = true
 		)
 
-		if len(blocks)%16 != 0 {
+		if len(blocks)%numLimbsPerBlock != 0 {
 			panic("unappropriate number of lanes in the current stream. Has it been padded?")
 		}
 
 		for len(blocks) > 0 {
 
 			copy(currBlock[:], blocks)
-			blocks = blocks[16:]
+			blocks = blocks[numLimbsPerBlock:]
 			currState = assi.pushBlock(currState, currBlock, isFirstBlock, len(blocks) == 0)
 			isFirstBlock = false
 		}
@@ -105,7 +109,7 @@ func (sbh *sha2BlockModule) Run(run *wizard.ProverRuntime) {
 
 	assi.padAndAssign(run)
 
-	sbh.IsEffFirstLaneOfNewHashShiftMin2.Assign(run)
+	sbh.IsEffFirstLaneOfNewHashShiftMin16.Assign(run)
 	sbh.CanBeBeginningOfInstance.Assign(run)
 	sbh.CanBeBlockOfInstance.Assign(run)
 	sbh.CanBeEndOfInstance.Assign(run)
@@ -123,11 +127,11 @@ func (sbh *sha2BlockModule) Run(run *wizard.ProverRuntime) {
 
 // pushBlock pushes the first block of a hash
 func (sbha *sha2BlockHashingAssignment) pushBlock(
-	oldState [2]field.Element,
-	block [16]field.Element,
+	oldState [numLimbsPerState]field.Element,
+	block [numLimbsPerBlock]field.Element,
 	isFirstBlockOfHash bool,
 	isLastBlockOfHash bool,
-) (newState [2]field.Element) {
+) (newState [numLimbsPerState]field.Element) {
 
 	newState = sha2Compress(oldState, block)
 
@@ -160,17 +164,18 @@ func (sbha *sha2BlockHashingAssignment) pushBlock(
 
 // catchUpHashHiLo pushes over the HashHi and HashLo columns so that their
 // heights match the one of the rest of the columns
-func (sbha *sha2BlockHashingAssignment) catchUpHashHiLo(finalState [2]field.Element) {
+func (sbha *sha2BlockHashingAssignment) catchUpHashHiLo(finalState [numLimbsPerState]field.Element) {
 
 	var (
-		heightHash   = sbha.HashHi.Height()
+		heightHash   = sbha.Hash[0].Height()
 		heightRest   = sbha.IsActive.Height()
 		numToCatchUp = heightRest - heightHash
 	)
 
 	for i := 0; i < numToCatchUp; i++ {
-		sbha.HashHi.PushField(finalState[0])
-		sbha.HashLo.PushField(finalState[1])
+		for j := range sbha.Hash {
+			sbha.Hash[j].PushField(finalState[j])
+		}
 	}
 }
 
@@ -182,33 +187,38 @@ func (sbha *sha2BlockHashingAssignment) padAndAssign(run *wizard.ProverRuntime) 
 	sbha.IsEffLastLaneOfCurrHash.PadAndAssign(run, field.Zero())
 	sbha.IsEffBlock.PadAndAssign(run, field.Zero())
 	sbha.Limbs.PadAndAssign(run, field.Zero())
-	sbha.HashHi.PadAndAssign(run, field.Zero())
-	sbha.HashLo.PadAndAssign(run, field.Zero())
+
+	for i := range sbha.Hash {
+		sbha.Hash[i].PadAndAssign(run, field.Zero())
+	}
 }
 
 // sha2Compress runs the compression function and returns the resulting hasher
 // state in the form of two field elements.
-func sha2Compress(oldState [2]field.Element, block [16]field.Element) (newState [2]field.Element) {
+func sha2Compress(
+	oldState [numLimbsPerState]field.Element,
+	block [numLimbsPerBlock]field.Element,
+) (newState [numLimbsPerState]field.Element) {
 
 	var (
-		oldStateBytes = [32]byte{}
-		blockBytes    = [64]byte{}
+		oldStateBytes = [stateSizeBytes]byte{}
+		blockBytes    = [blockSizeBytes]byte{}
 	)
 
 	for i := range oldState {
 		osI := oldState[i].Bytes()
-		copy(oldStateBytes[16*i:], osI[16:])
+		copy(oldStateBytes[numLimbBytes*i:], osI[limbBytesStart:])
 	}
 
 	for i := range block {
 		bI := block[i].Bytes()
-		copy(blockBytes[4*i:], bI[32-4:])
+		copy(blockBytes[numLimbBytes*i:], bI[limbBytesStart:])
 	}
 
 	newStateBytes := sha2.Compress(oldStateBytes, blockBytes)
 
 	for i := range newState {
-		newState[i].SetBytes(newStateBytes[16*i : 16*i+16])
+		newState[i].SetBytes(newStateBytes[numLimbBytes*i : numLimbBytes*i+numLimbBytes])
 	}
 
 	return newState
