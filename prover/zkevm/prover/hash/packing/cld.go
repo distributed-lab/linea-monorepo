@@ -152,7 +152,7 @@ func (decomposed *decomposition) csDecomposLen(
 //
 // - (decomposedLimbs[0] * 2^8 + carry[0] - Limbs[0]) * decompositionHappened == 0 // base case
 // - (decomposedLimbs[i] * 2^8 + carry[i] - Limbs[i] - carry[i-1] * decomposedLenPowers[i]) * decompositionHappened == 0 // for i > 0
-// - (decomposedLimbs[last] * 2^8 - carry[last-1]) * decompositionHappened == 0
+// - (decomposedLimbs[last] - carry[last-1]) * decompositionHappened == 0
 func (decomposed decomposition) csDecomposedLimbs(
 	comp *wizard.CompiledIOP,
 	imported Importation,
@@ -196,8 +196,8 @@ func (decomposed decomposition) csDecomposedLimbs(
 	comp.InsertGlobal(0, ifaces.QueryIDf("%v_DecomposedLimbs_Last", decomposed.Inputs.Name),
 		sym.Mul(
 			sym.Sub(
+				decomposedLimbs[last],
 				carry[last-1],
-				sym.Mul(decomposedLimbs[last], sym.NewConstant(POWER8)),
 			),
 			decompositionHappened,
 		),
@@ -403,35 +403,37 @@ func decomposeNByte(nbytes []field.Element) [][]int {
 
 // decomposeHappened returns an expression that indicates whether the decomposition happened in this row.
 //
-// We assume that decomposition happened whenether the first column of number meaningful bytes is 1:
+// We assume that decomposition happened whenether the first column of number meaningful bytes is 1
+// and second one is not zero.
 //
 // f(x) = x (2 - x) ==> f(x) = 1 iff x = 1 as x \in [0, 2].
+// g(y) = y (3 - y) ==> g(1) = 2, g(2) = 2, g(0) = 0
 //
-// Explanation:
-//
-// As possible lengthes are 0, 1, 2 we have cases like:
-// 1. [1, 0, ..., 0]
-// 2. [2, ..., 0]
-// 2. [1, 1, ..., 0]
-// 3. [1, 2, ..., 0]
-//
-// First one doesn't require decomposition, but formulas in decomposition still works
-// for it. Second one doesn't require decomposition, so should skip it.
-// Third one and fourth one require decomposition, so we should apply it.
+// z(x, y) = f(x) * g(y) = x (2 - x) * y (3 - y)
 func decompositionHappened(decomposedLen []ifaces.Column) *sym.Expression {
 	if len(decomposedLen) == 0 {
 		utils.Panic("decompositionHappened expects at least one decomposedLen column")
 	}
 
 	x := decomposedLen[0]
+	y := decomposedLen[1]
 
-	return sym.Mul(
+	f := sym.Mul(
 		x,
 		sym.Sub(
 			sym.NewConstant(2),
 			x,
 		),
 	)
+	g := sym.Mul(
+		y,
+		sym.Sub(
+			sym.NewConstant(3),
+			y,
+		),
+	)
+	z := sym.Mul(f, g)
+	return z
 }
 
 // decomposeLimbsAndCarry constructs decomposed limbs and carry from original limbs.

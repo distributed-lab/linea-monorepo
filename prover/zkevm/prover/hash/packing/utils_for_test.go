@@ -14,10 +14,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const (
+	TotalMaxNByte = common.NbLimbU128 * MAXNBYTE
+)
+
 // It represents the importation struct for testing.
 type dataTraceImported struct {
 	isNewHash, nByte []int
-	limb             [common.NbLimbU128][][]byte
+	limb             [common.NbLimbU128][][MAXNBYTE]byte
 }
 
 // It generates data to fill up the importation columns.
@@ -26,7 +30,7 @@ func table(t *dataTraceImported, numHash, blockSize, size int) [][]byte {
 	// choose the limbs for each hash
 	// we set the limbs to less than maxNBytes  and then pad them to get maxNByte.
 	var (
-		limbs     = make([][common.NbLimbU128][][]byte, numHash)
+		limbs     = make([][common.NbLimbU128][][MAXNBYTE]byte, numHash)
 		nByte     = make([][]int, numHash)
 		isNewHash = make([][]int, numHash)
 		rand      = rand.New(utils.NewRandSource(0)) // nolint
@@ -48,7 +52,7 @@ func table(t *dataTraceImported, numHash, blockSize, size int) [][]byte {
 		for j := 0; j < nlimb; j++ {
 			// generate random bytes
 			// choose a random length for the slice
-			length := rand.IntN(MAXNBYTE) + 1 //nolint
+			length := rand.IntN(TotalMaxNByte) + 1 //nolint
 
 			// generate random bytes
 			slice := make([]byte, length)
@@ -61,7 +65,7 @@ func table(t *dataTraceImported, numHash, blockSize, size int) [][]byte {
 			// pad the limb to get maxNByte.
 			r := toByte16Limbs(slice)
 			for limbIdx := range r {
-				limbs[i][limbIdx] = append(limbs[i][limbIdx], r[limbIdx][:])
+				limbs[i][limbIdx] = append(limbs[i][limbIdx], r[limbIdx])
 			}
 			nByte[i] = append(nByte[i], len(slice))
 			if j == 0 {
@@ -79,9 +83,9 @@ func table(t *dataTraceImported, numHash, blockSize, size int) [][]byte {
 	for k := 0; k < numHash; k++ {
 		if s[k]%blockSize != 0 {
 			n := (blockSize - s[k]%blockSize)
-			for n > MAXNBYTE {
+			for n > TotalMaxNByte {
 				// generate random bytes
-				slice := make([]byte, MAXNBYTE)
+				slice := make([]byte, TotalMaxNByte)
 				_, err := utils.ReadPseudoRand(rand, slice)
 				if err != nil {
 					logrus.Fatalf("error while generating random bytes: %s", err)
@@ -89,14 +93,14 @@ func table(t *dataTraceImported, numHash, blockSize, size int) [][]byte {
 
 				stream[k] = append(stream[k], slice...)
 				r := toByte16Limbs(slice)
-				for i := range r {
-					limbs[k][i] = append(limbs[k][i], r[i][:])
+				for limbIdx := range r {
+					limbs[k][limbIdx] = append(limbs[k][limbIdx], r[limbIdx])
 				}
 				nByte[k] = append(nByte[k], len(slice))
 				isNewHash[k] = append(isNewHash[k], 0)
 
-				n = n - MAXNBYTE
-				s[k] = s[k] + MAXNBYTE
+				n = n - TotalMaxNByte
+				s[k] = s[k] + TotalMaxNByte
 			}
 			// generate random bytes
 			slice := make([]byte, n)
@@ -108,9 +112,10 @@ func table(t *dataTraceImported, numHash, blockSize, size int) [][]byte {
 
 			stream[k] = append(stream[k], slice...)
 			r := toByte16Limbs(slice)
-			for i := range r {
-				limbs[k][i] = append(limbs[k][i], r[i][:])
+			for limbIdx := range r {
+				limbs[k][limbIdx] = append(limbs[k][limbIdx], r[limbIdx])
 			}
+			nByte[k] = append(nByte[k], len(slice))
 			isNewHash[k] = append(isNewHash[k], 0)
 		}
 
@@ -121,7 +126,7 @@ func table(t *dataTraceImported, numHash, blockSize, size int) [][]byte {
 	}
 
 	// accumulate the tables from different hashes in a single table.
-	var limbT [common.NbLimbU128][][]byte
+	var limbT [common.NbLimbU128][][MAXNBYTE]byte
 	var nByteT, isNewHashT []int
 	for k := 0; k < numHash; k++ {
 		for i := range limbs[k] {
@@ -149,7 +154,7 @@ func table(t *dataTraceImported, numHash, blockSize, size int) [][]byte {
 
 // It extends a short slice to [16]bytes.
 func toByte16Limbs(b []byte) [common.NbLimbU128][MAXNBYTE]byte {
-	if len(b) > MAXNBYTE {
+	if len(b) > TotalMaxNByte {
 		utils.Panic("the length of input should not be greater than %v", MAXNBYTE)
 	}
 
@@ -196,10 +201,11 @@ func assignImportationColumns(run *wizard.ProverRuntime, imported *Importation, 
 	_ = table(&t, numHash, blockSize, targetSize)
 
 	u := make([][]field.Element, len(t.limb))
-	for i := range t.limb {
+	for i := range common.NbLimbU128 {
 		u[i] = make([]field.Element, len(t.limb[i]))
-		for j := range t.limb[i] {
-			u[i][j].SetBytes(t.limb[i][j][:])
+
+		for j, limbBytes := range t.limb[i] {
+			u[i][j].SetBytes(limbBytes[:])
 		}
 	}
 	a := smartvectors.ForTest(t.isNewHash...)

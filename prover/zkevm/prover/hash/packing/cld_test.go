@@ -55,7 +55,7 @@ func makeTestCaseCLDModule(uc generic.HashingUsecase) (
 }
 
 func TestCLDModule(t *testing.T) {
-	for _, uc := range testCases[:1] {
+	for _, uc := range testCases {
 		t.Run(uc.Name, func(t *testing.T) {
 			define, prover := makeTestCaseCLDModule(uc.UseCase)
 			comp := wizard.Compile(define, dummy.Compile)
