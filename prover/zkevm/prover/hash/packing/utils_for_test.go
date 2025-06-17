@@ -210,11 +210,10 @@ func assignImportationColumns(run *wizard.ProverRuntime, imported *Importation, 
 	cc := smartvectors.RightZeroPadded(smartvectors.IntoRegVec(c), targetSize)
 	run.AssignColumn(imported.NByte.GetColID(), cc)
 
-	for i := range imported.Limb {
+	for i := range u {
 		run.AssignColumn(imported.Limb[i].GetColID(), smartvectors.RightZeroPadded(u[i], targetSize))
 	}
 
 	run.AssignColumn(imported.IsActive.GetColID(),
-		smartvectors.RightZeroPadded(vector.Repeat(field.One(), len(t.limb[0])), targetSize))
-
+		smartvectors.RightZeroPadded(vector.Repeat(field.One(), len(t.nByte)), targetSize))
 }
