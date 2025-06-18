@@ -39,12 +39,16 @@ type laneRepacking struct {
 	IsFirstLaneOfNewHash ifaces.Column
 	// the size of the columns in this submodule.
 	Size int
+	// As MAXNBYTE=2 we can't use one row for each lane. So this value
+	// is equal to number of rows per one lane.
+	RowsPerLane int
 }
 
 // It imposes all the constraints for correct repacking of decompsedLimbs into lanes.
 func newLane(comp *wizard.CompiledIOP, spaghetti spaghettiCtx, pckInp PackingInput) laneRepacking {
 	var (
-		size                  = utils.NextPowerOfTwo(pckInp.PackingParam.NbOfLanesPerBlock() * pckInp.MaxNumBlocks)
+		rowsPerLane           = pckInp.PackingParam.LaneSizeBytes() / MAXNBYTE
+		size                  = utils.NextPowerOfTwo(pckInp.PackingParam.NbOfLanesPerBlock() * pckInp.MaxNumBlocks * rowsPerLane)
 		createCol             = common.CreateColFn(comp, LANE+"_"+pckInp.Name, size, pragmas.RightPadded)
 		isFirstSliceOfNewHash = spaghetti.newHashSp
 		maxValue              = pckInp.PackingParam.LaneSizeBytes()
@@ -67,6 +71,7 @@ func newLane(comp *wizard.CompiledIOP, spaghetti spaghettiCtx, pckInp PackingInp
 		paAccUpToMax:   pa,
 		isLaneComplete: pa.IsMax,
 		Size:           size,
+		RowsPerLane:    rowsPerLane,
 	}
 
 	// Declare the constraints
@@ -213,14 +218,17 @@ func (l *laneRepacking) assignLane(run *wizard.ProverRuntime) {
 		}
 		for j := 0; j < param.NbOfLanesPerBlock(); j++ {
 			laneBytes := block[j*laneBytes : j*laneBytes+laneBytes]
-			f.SetBytes(laneBytes)
-			lane.PushField(f)
-			if flag[k] == 1 && j == 0 {
-				isFirstLaneofNewHash.PushInt(1)
-			} else {
-				isFirstLaneofNewHash.PushInt(0)
+			for i := range l.RowsPerLane {
+				laneBytesPerRow := laneBytes[i*MAXNBYTE : i*l.RowsPerLane+MAXNBYTE]
+				f.SetBytes(laneBytesPerRow)
+				lane.PushField(f)
+				if flag[k] == 1 && j == 0 && i == 0 {
+					isFirstLaneofNewHash.PushInt(1)
+				} else {
+					isFirstLaneofNewHash.PushInt(0)
+				}
+				isActive.PushInt(1)
 			}
-			isActive.PushInt(1)
 		}
 
 	}
