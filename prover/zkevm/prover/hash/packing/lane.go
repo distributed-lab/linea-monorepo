@@ -47,7 +47,7 @@ type laneRepacking struct {
 // It imposes all the constraints for correct repacking of decompsedLimbs into lanes.
 func newLane(comp *wizard.CompiledIOP, spaghetti spaghettiCtx, pckInp PackingInput) laneRepacking {
 	var (
-		rowsPerLane           = pckInp.PackingParam.LaneSizeBytes() / MAXNBYTE
+		rowsPerLane           = (pckInp.PackingParam.LaneSizeBytes() + MAXNBYTE - 1) / MAXNBYTE
 		size                  = utils.NextPowerOfTwo(pckInp.PackingParam.NbOfLanesPerBlock() * pckInp.MaxNumBlocks * rowsPerLane)
 		createCol             = common.CreateColFn(comp, LANE+"_"+pckInp.Name, size, pragmas.RightPadded)
 		isFirstSliceOfNewHash = spaghetti.newHashSp
@@ -219,7 +219,7 @@ func (l *laneRepacking) assignLane(run *wizard.ProverRuntime) {
 		for j := 0; j < param.NbOfLanesPerBlock(); j++ {
 			laneBytes := block[j*laneBytes : j*laneBytes+laneBytes]
 			for i := range l.RowsPerLane {
-				laneBytesPerRow := laneBytes[i*MAXNBYTE : i*l.RowsPerLane+MAXNBYTE]
+				laneBytesPerRow := laneBytes[i*MAXNBYTE : i*MAXNBYTE+MAXNBYTE]
 				f.SetBytes(laneBytesPerRow)
 				lane.PushField(f)
 				if flag[k] == 1 && j == 0 && i == 0 {
