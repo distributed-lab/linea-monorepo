@@ -59,8 +59,6 @@ type decomposition struct {
 	paIsZero  []wizard.ProverAction
 	// size of the module
 	size int
-	// max length in the decomposition
-	maxLen int
 }
 
 /*
@@ -79,8 +77,6 @@ func newDecomposition(comp *wizard.CompiledIOP, inp decompositionInputs) decompo
 	decomposed := decomposition{
 		Inputs: &inp,
 		size:   size,
-		// TODO use context instead
-		maxLen: 2, // inp.param.LaneSizeBytes(),
 		// the next assignment guarantees that isActive is from the Activation form.
 		isActive: inp.imported.IsActive,
 	}
@@ -291,7 +287,7 @@ func (decomposed *decomposition) assignMainColumns(run *wizard.ProverRuntime) {
 	}
 
 	// assign row-by-row
-	decomposedLen = cutUpToMax(nByte, nbDecomposedLen, decomposed.maxLen)
+	decomposedLen = cutUpToMax(nByte, nbDecomposedLen, MAXNBYTE)
 
 	for j := range decomposedLen {
 		run.AssignColumn(decomposed.decomposedLen[j].GetColID(), smartvectors.RightZeroPadded(decomposedLen[j], decomposed.size))
@@ -299,7 +295,7 @@ func (decomposed *decomposition) assignMainColumns(run *wizard.ProverRuntime) {
 
 	// powersOf256 stores the successive powers of 2^8=256. This is used to compute
 	// the decomposedLenPowers = 2^(8*i).
-	powersOf256 := make([]field.Element, decomposed.maxLen+1)
+	powersOf256 := make([]field.Element, MAXNBYTE+1)
 	for i := range powersOf256 {
 		powersOf256[i].Exp(field.NewElement(POWER8), big.NewInt(int64(i)))
 	}

@@ -55,7 +55,6 @@ func makeTestCaseLaneRepacking(uc generic.HashingUsecase) (
 		decomposed = decomposition{
 			Inputs: inp,
 			size:   size,
-			maxLen: inp.param.LaneSizeBytes(),
 		}
 
 		// commit to decomposition Columns; no constraint
