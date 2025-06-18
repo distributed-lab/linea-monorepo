@@ -5,8 +5,6 @@ import (
 
 	"github.com/consensys/linea-monorepo/prover/maths/field"
 	"github.com/consensys/linea-monorepo/prover/protocol/compiler/dummy"
-	"github.com/consensys/linea-monorepo/prover/protocol/distributed/pragmas"
-	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
 	"github.com/consensys/linea-monorepo/prover/utils"
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
@@ -48,20 +46,16 @@ func makeTestCaseLaneRepacking(uc generic.HashingUsecase) (
 			Imported:     imported,
 		}
 
-		createCol := common.CreateColFn(comp, "TEST_SPAGHETTI", size, pragmas.RightPadded)
 		inp := &decompositionInputs{
-			param: pckInp.PackingParam,
+			param:    pckInp.PackingParam,
+			imported: imported,
+			Name:     "TEST_SPAGHETTI",
 		}
 
 		decomposed = decomposition{
 			Inputs: inp,
 			size:   size,
 			maxLen: inp.param.LaneSizeBytes(),
-		}
-
-		cleanedLimbs := make([]ifaces.Column, common.NbLimbU128)
-		for i := range cleanedLimbs {
-			cleanedLimbs[i] = createCol("CleanLimb_%d", i)
 		}
 
 		// commit to decomposition Columns; no constraint

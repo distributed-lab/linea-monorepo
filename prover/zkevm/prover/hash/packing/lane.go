@@ -237,38 +237,37 @@ func (l *laneRepacking) getBlocks(run *wizard.ProverRuntime, inp PackingInput) (
 	var (
 		s = 0
 		// counter for the number of blocks
-		ctr       = 0
-		blockSize = inp.PackingParam.BlockSizeBytes()
-		imported  = inp.Imported
-		limbs     = make([][]field.Element, len(imported.Limb))
-		decLen    = make([][]field.Element, len(l.Inputs.spaghetti.decomposedLen))
-		nBytes    = smartvectors.Window(imported.NByte.GetColAssignment(run))
-		isNewHash = smartvectors.Window(imported.IsNewHash.GetColAssignment(run))
+		ctr              = 0
+		blockSize        = inp.PackingParam.BlockSizeBytes()
+		imported         = inp.Imported
+		limbs            = make([][]field.Element, len(imported.Limb))
+		nBytes           = smartvectors.Window(imported.NByte.GetColAssignment(run))
+		decomposedNBytes = decomposeNByte(nBytes)
+		isNewHash        = smartvectors.Window(imported.IsNewHash.GetColAssignment(run))
+		nbRows           = len(limbs[0])
 	)
-
-	for i := range limbs {
+	for i := range common.NbLimbU128 {
 		limbs[i] = smartvectors.Window(imported.Limb[i].GetColAssignment(run))
-		decLen[i] = smartvectors.Window(l.Inputs.spaghetti.decomposedLen[i].GetColAssignment(run))
 	}
 
 	var stream []byte
 	var block [][]byte
 	var isFirstBlockOfHash []int
 	isFirstBlockOfHash = append(isFirstBlockOfHash, 1)
-	for pos := 0; pos < len(limbs); pos++ {
+	for pos := 0; pos < nbRows; pos++ {
 		nbyte := field.ToInt(&nBytes[pos])
 		s = s + nbyte
 
 		// Serialize the limb value from 8 left-aligned 2-byte values into one "nbyte" byte array
 		var usefulByte []byte
-		for i := range len(limbs) {
-			limbNByte := field.ToInt(&decLen[i][pos])
+		for i := range limbs {
+			limbNByte := decomposedNBytes[i][pos]
 			limbBytes := limbs[i][pos].Bytes()
 			usefulByte = append(usefulByte, limbBytes[LEFT_ALIGNMENT:LEFT_ALIGNMENT+limbNByte]...)
 		}
 
 		// SANITY CHECK
-		utils.Require(len(usefulByte) == nbyte, "invalid length of usefulByte")
+		utils.Require(len(usefulByte) == nbyte, "invalid length of usefulByte %d != %d", len(usefulByte), nbyte)
 
 		if s > blockSize || s == blockSize {
 			// extra part that should be moved to the next block
@@ -279,10 +278,10 @@ func (l *laneRepacking) getBlocks(run *wizard.ProverRuntime, inp PackingInput) (
 				utils.Panic("could not extract the new Block")
 			}
 			block = append(block, newBlock)
-			if pos+1 != len(limbs) && isNewHash[pos+1].IsOne() {
+			if pos+1 != nbRows && isNewHash[pos+1].IsOne() {
 				// the next block is the first block of hash
 				isFirstBlockOfHash = append(isFirstBlockOfHash, 1)
-			} else if pos+1 != len(limbs) {
+			} else if pos+1 != nbRows {
 				isFirstBlockOfHash = append(isFirstBlockOfHash, 0)
 			}
 			stream = make([]byte, s)
@@ -294,7 +293,7 @@ func (l *laneRepacking) getBlocks(run *wizard.ProverRuntime, inp PackingInput) (
 		// If we are on the last limb or if it is a new hash
 		// the steam should be empty,
 		// unless \sum_i NByte_i does not divide the blockSize (for i from the same hash)
-		if pos+1 == len(limbs) || isNewHash[pos+1].Uint64() == 1 {
+		if pos+1 == nbRows || isNewHash[pos+1].Uint64() == 1 {
 			if len(stream) != 0 {
 				utils.Panic("The stream-length should be zero before launching a new hash/batch len(stream) = %v", len(stream))
 			}
