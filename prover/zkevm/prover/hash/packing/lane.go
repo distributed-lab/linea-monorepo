@@ -252,11 +252,11 @@ func (l *laneRepacking) getBlocks(run *wizard.ProverRuntime, inp PackingInput) (
 		nBytes           = smartvectors.Window(imported.NByte.GetColAssignment(run))
 		decomposedNBytes = decomposeNByte(nBytes)
 		isNewHash        = smartvectors.Window(imported.IsNewHash.GetColAssignment(run))
-		nbRows           = len(limbs[0])
 	)
 	for i := range common.NbLimbU128 {
 		limbs[i] = smartvectors.Window(imported.Limb[i].GetColAssignment(run))
 	}
+	nbRows := len(limbs[0])
 
 	var stream []byte
 	var block [][]byte
