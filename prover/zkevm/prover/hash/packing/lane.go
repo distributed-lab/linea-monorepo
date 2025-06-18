@@ -202,7 +202,7 @@ func (l *laneRepacking) assignLane(run *wizard.ProverRuntime) {
 		param                = l.Inputs.pckInp.PackingParam
 		isFirstLaneofNewHash = common.NewVectorBuilder(l.IsFirstLaneOfNewHash)
 		isActive             = common.NewVectorBuilder(l.IsLaneActive)
-		laneBytes            = param.LaneSizeBytes()
+		nbLaneBytes          = param.LaneSizeBytes()
 		blocks, flag         = l.getBlocks(run, l.Inputs.pckInp)
 	)
 	var f field.Element
@@ -216,10 +216,16 @@ func (l *laneRepacking) assignLane(run *wizard.ProverRuntime) {
 			utils.Panic("blocks should be of size %v, but it is of size %v", param.BlockSizeBytes(), len(block))
 		}
 		for j := 0; j < param.NbOfLanesPerBlock(); j++ {
-			laneBytes := block[j*laneBytes : j*laneBytes+laneBytes]
+			laneBytes := block[j*nbLaneBytes : j*nbLaneBytes+nbLaneBytes]
+
+			leftLaneBytes := nbLaneBytes
 			for i := range l.RowsPerLane {
-				laneBytesPerRow := laneBytes[i*MAXNBYTE : i*MAXNBYTE+MAXNBYTE]
+				offset := min(leftLaneBytes, MAXNBYTE)
+
+				laneBytesPerRow := laneBytes[i*MAXNBYTE : i*MAXNBYTE+offset]
 				f.SetBytes(laneBytesPerRow)
+				leftLaneBytes -= offset
+
 				lane.PushField(f)
 				if flag[k] == 1 && j == 0 && i == 0 {
 					isFirstLaneofNewHash.PushInt(1)
