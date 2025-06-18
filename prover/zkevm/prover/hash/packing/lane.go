@@ -51,9 +51,8 @@ func newLane(comp *wizard.CompiledIOP, spaghetti spaghettiCtx, pckInp PackingInp
 		size                  = utils.NextPowerOfTwo(pckInp.PackingParam.NbOfLanesPerBlock() * pckInp.MaxNumBlocks * rowsPerLane)
 		createCol             = common.CreateColFn(comp, LANE+"_"+pckInp.Name, size, pragmas.RightPadded)
 		isFirstSliceOfNewHash = spaghetti.newHashSp
-		maxValue              = pckInp.PackingParam.LaneSizeBytes()
 		decomposedLenSp       = spaghetti.decLenSp
-		pa                    = dedicated.AccumulateUpToMax(comp, maxValue, decomposedLenSp, spaghetti.filterSpaghetti)
+		pa                    = dedicated.AccumulateUpToMax(comp, MAXNBYTE, decomposedLenSp, spaghetti.filterSpaghetti)
 		spaghettiSize         = spaghetti.spaghettiSize
 	)
 
