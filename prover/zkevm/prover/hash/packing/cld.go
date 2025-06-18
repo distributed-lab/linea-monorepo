@@ -198,6 +198,16 @@ func (decomposed decomposition) csDecomposedLimbs(
 			decompositionHappened,
 		),
 	)
+
+	// range checks
+	for i := range decomposedLimbs {
+		comp.InsertRange(0, ifaces.QueryIDf("%v_DecomposedLimbs_RangeCheck_%v", decomposed.Inputs.Name, i),
+			decomposedLimbs[i], POWER16)
+	}
+	for i := range carry {
+		comp.InsertRange(0, ifaces.QueryIDf("%v_Carry_RangeCheck_%v", decomposed.Inputs.Name, i),
+			carry[i], POWER8)
+	}
 }
 
 // /  Constraints over the form of filter and decomposedLen;
