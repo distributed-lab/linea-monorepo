@@ -55,15 +55,20 @@ func (sbh *sha2BlockModule) Run(run *wizard.ProverRuntime) {
 	scanCurrHash := func() []field.Element {
 
 		var (
-			blocks  []field.Element
-			isFirst = true
+			blocks []field.Element
 		)
 
 		for ; cursorInp < numRowInp; cursorInp++ {
 
+			if selector[cursorInp].IsZero() {
+				continue
+			}
+
+			blocks = append(blocks, packedUint16[cursorInp])
+
 			// If we cross a new hash, it hits a stopping condition. We don't
 			// include in the loop boundary as it features a sanity-check.
-			if !isFirst && isFirstLaneOfNewHash[cursorInp].IsOne() {
+			if isFirstLaneOfNewHash[cursorInp].IsZero() && isFirstLaneOfNewHash[cursorInp+1].IsOne() {
 
 				if selector[cursorInp].IsZero() {
 					utils.Panic("unexpected: at row %v, the selector is zero but isNewHash is one", cursorInp)
@@ -71,13 +76,6 @@ func (sbh *sha2BlockModule) Run(run *wizard.ProverRuntime) {
 
 				return blocks
 			}
-
-			isFirst = false
-			if selector[cursorInp].IsZero() {
-				continue
-			}
-
-			blocks = append(blocks, packedUint16[cursorInp])
 		}
 
 		return blocks
@@ -93,7 +91,7 @@ func (sbh *sha2BlockModule) Run(run *wizard.ProverRuntime) {
 		)
 
 		if len(blocks)%numLimbsPerBlock != 0 {
-			panic("unappropriate number of lanes in the current stream. Has it been padded?")
+			utils.Panic("unappropriate number of lanes in the current stream %d. Has it been padded?", len(blocks))
 		}
 
 		for len(blocks) > 0 {
@@ -155,7 +153,7 @@ func (sbha *sha2BlockHashingAssignment) pushBlock(
 		sbha.IsActive.PushOne()
 		sbha.IsEffBlock.PushZero()
 		sbha.IsEffFirstLaneOfNewHash.PushZero()
-		sbha.IsEffLastLaneOfCurrHash.PushBoolean(isLastBlockOfHash && i == 1)
+		sbha.IsEffLastLaneOfCurrHash.PushBoolean(isLastBlockOfHash && i == numLimbsPerState-1)
 		sbha.Limbs.PushField(newState[i])
 	}
 

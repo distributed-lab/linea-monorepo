@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"testing"
 
+	"fmt"
 	"github.com/consensys/linea-monorepo/prover/protocol/compiler/dummy"
 	"github.com/consensys/linea-monorepo/prover/protocol/query"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
@@ -73,15 +74,21 @@ func runTestSha2(t *testing.T, tc testCaseFile) {
 
 		mod.Run(run)
 
-		modCt.CheckAssignment(run,
+		toCheckAssignments := []string{
 			"TESTING_IS_ACTIVE",
 			"TESTING_IS_EFF_BLOCK",
 			"TESTING_IS_EFF_FIRST_LANE_OF_NEW_HASH",
 			"TESTING_IS_EFF_LAST_LANE_OF_CURR_HASH",
-			"TESTING_HASH_HI",
-			"TESTING_HASH_LO",
 			"TESTING_LIMBS",
-		)
+		}
+
+		for i := range numLimbsPerState {
+			toCheckAssignments = append(toCheckAssignments,
+				fmt.Sprintf("TESTING_HASH_%d", i),
+			)
+		}
+
+		modCt.CheckAssignment(run, toCheckAssignments...)
 	})
 
 	if err := wizard.Verify(comp, proof); err != nil {

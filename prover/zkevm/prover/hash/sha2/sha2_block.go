@@ -300,13 +300,12 @@ func newSha2BlockModule(comp *wizard.CompiledIOP, inp *sha2BlocksInputs) *sha2Bl
 	// be equals to HASH.
 	//
 
-	// TODO noBoundCancel?
 	for i := range numLimbsPerState {
 		comp.InsertGlobal(0,
 			ifaces.QueryIDf("%v_SET_HASH_%d", inp.Name, i),
 			sym.Mul(
 				res.IsEffLastLaneOfCurrHash,
-				sym.Sub(res.Hash[i], column.Shift(res.Limbs, numLimbsPerState-i-1)),
+				sym.Sub(res.Hash[i], column.Shift(res.Limbs, -numLimbsPerState+i+1)),
 			),
 		)
 	}
@@ -351,7 +350,7 @@ func newSha2BlockModule(comp *wizard.CompiledIOP, inp *sha2BlocksInputs) *sha2Bl
 	sumHash := sym.NewConstant(0)
 	for i := range numLimbsPerState {
 		res.HashIsZero[i], ctxHash[i] = dedicated.IsZero(comp, res.Hash[i])
-		sym.Add(sumHash, res.HashIsZero[i])
+		sumHash = sym.Add(sumHash, res.HashIsZero[i])
 	}
 
 	res.proverActions = append(res.proverActions, ctxHash[:]...)
