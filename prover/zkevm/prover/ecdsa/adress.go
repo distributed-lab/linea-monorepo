@@ -22,11 +22,11 @@ const (
 	// addressHiBytes is the size of the leftover from trimmed addressHi part (in bytes).
 	addressHiBytes = 4
 	// addressHiColumns is the number of addressHi columns.
-	addressHiColumns = addressHiBytes / LimbBytes
+	addressHiColumns = addressHiBytes / common.LimbBytes
 	// addressTrimmedBytes size of the trimmed address part (in bytes).
 	addressTrimmedBytes = common.NbLimbU256 - addressHiBytes
 	// addressTrimmedColumns number of columns that represent the trimmed address part.
-	addressTrimmedColumns = addressTrimmedBytes / LimbBytes
+	addressTrimmedColumns = addressTrimmedBytes / common.LimbBytes
 )
 
 // Addresses submodule is responsible for the columns holding the address of the sender,
@@ -295,7 +295,7 @@ func (addr *Addresses) assignMainColumns(
 		}
 
 		// Initialize limb values for each column of addressUntrimmed
-		addressUntrimmed := SplitBytes(digest[:])
+		addressUntrimmed := common.SplitBytes(digest[:])
 		for j, limb := range addressUntrimmed {
 			var element field.Element
 			element.SetBytes(limb[:])
@@ -305,7 +305,7 @@ func (addr *Addresses) assignMainColumns(
 		}
 
 		// Initialize limb values for each column of address
-		address := SplitBytes(digest[addressTrimmedBytes:])
+		address := common.SplitBytes(digest[addressTrimmedBytes:])
 		for j, limb := range address {
 			var element field.Element
 			element.SetBytes(limb[:])
