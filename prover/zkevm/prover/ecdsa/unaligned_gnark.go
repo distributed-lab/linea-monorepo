@@ -186,7 +186,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			var txBts []byte
 			for _, txHighBtsRow := range rows[4*common.NbLimbU128 : 6*common.NbLimbU128] {
 				bytes := txHighBtsRow.Bytes()
-				txBts = append(txBts, bytes[field.Bytes-LimbBytes:]...)
+				txBts = append(txBts, bytes[field.Bytes-common.LimbBytes:]...)
 			}
 
 			copy(prehashedMsg[:], txBts[:])
@@ -194,7 +194,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			var vBts []byte
 			for _, vBtsRow := range rows[6*common.NbLimbU128 : 8*common.NbLimbU128] {
 				bytes := vBtsRow.Bytes()
-				vBts = append(vBts, bytes[field.Bytes-LimbBytes:]...)
+				vBts = append(vBts, bytes[field.Bytes-common.LimbBytes:]...)
 			}
 
 			v.SetBytes(vBts)
@@ -202,7 +202,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			var rBts []byte
 			for _, rBtsRow := range rows[8*common.NbLimbU128 : 10*common.NbLimbU128] {
 				bytes := rBtsRow.Bytes()
-				rBts = append(rBts, bytes[field.Bytes-LimbBytes:]...)
+				rBts = append(rBts, bytes[field.Bytes-common.LimbBytes:]...)
 			}
 
 			r.SetBytes(rBts)
@@ -210,7 +210,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			var sBts []byte
 			for _, sBtsRow := range rows[10*common.NbLimbU128 : 12*common.NbLimbU128] {
 				bytes := sBtsRow.Bytes()
-				sBts = append(sBts, bytes[field.Bytes-LimbBytes:]...)
+				sBts = append(sBts, bytes[field.Bytes-common.LimbBytes:]...)
 			}
 
 			s.SetBytes(sBts)
@@ -240,7 +240,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 			var txBts []byte
 			for _, txHighBtsRow := range rows[4*common.NbLimbU128 : 6*common.NbLimbU128] {
 				bytes := txHighBtsRow.Bytes()
-				txBts = append(txBts, bytes[field.Bytes-LimbBytes:]...)
+				txBts = append(txBts, bytes[field.Bytes-common.LimbBytes:]...)
 			}
 
 			copy(prehashedMsg[:], txBts[:])
@@ -252,21 +252,21 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 
 			v.FillBytes(buf[:])
 
-			vLimbs := SplitBytes(buf[:])
+			vLimbs := common.SplitBytes(buf[:])
 			for j, vLimb := range vLimbs {
 				rows[6*common.NbLimbU128+j].SetBytes(vLimb)
 			}
 
 			r.FillBytes(buf[:])
 
-			rLimbs := SplitBytes(buf[:])
+			rLimbs := common.SplitBytes(buf[:])
 			for j, rLimb := range rLimbs {
 				rows[8*common.NbLimbU128+j].SetBytes(rLimb)
 			}
 
 			s.FillBytes(buf[:])
 
-			sLimbs := SplitBytes(buf[:])
+			sLimbs := common.SplitBytes(buf[:])
 			for j, sLimb := range sLimbs {
 				rows[10*common.NbLimbU128+j].SetBytes(sLimb)
 			}
@@ -288,13 +288,13 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 		}
 
 		pkx := pk.A.X.Bytes()
-		pkxLimbs := SplitBytes(pkx[:])
+		pkxLimbs := common.SplitBytes(pkx[:])
 		for j, xLimb := range pkxLimbs {
 			rows[j].SetBytes(xLimb)
 		}
 
 		pky := pk.A.Y.Bytes()
-		pkyLimbs := SplitBytes(pky[:])
+		pkyLimbs := common.SplitBytes(pky[:])
 		for j, yLimb := range pkyLimbs {
 			rows[2*common.NbLimbU128+j].SetBytes(yLimb)
 		}
@@ -324,7 +324,7 @@ func (d *UnalignedGnarkData) assignUnalignedGnarkData(run *wizard.ProverRuntime,
 		for j := 0; j < nbRowsPerGnarkPushing*common.NbLimbU128; j++ {
 			rowBytes := rows[j].Bytes()
 			bytes := [16]byte{}
-			copy(bytes[:], rowBytes[field.Bytes-LimbBytes:])
+			copy(bytes[:], rowBytes[field.Bytes-common.LimbBytes:])
 
 			var elementLA field.Element
 			elementLA.SetBytes(bytes[:])
