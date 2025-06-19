@@ -14,6 +14,7 @@ import (
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 	commonconstraints "github.com/consensys/linea-monorepo/prover/zkevm/prover/common/common_constraints"
 	"github.com/consensys/linea-monorepo/prover/zkevm/prover/hash/generic"
+	"github.com/consensys/linea-monorepo/prover/zkevm/prover/hash/packing/dedicated"
 )
 
 const (
@@ -43,7 +44,10 @@ type decomposition struct {
 	Inputs *decompositionInputs
 	// decomposedLimbs is the "decomposition" of input Limbs.
 	decomposedLimbs []ifaces.Column
-	//  the length associated with decomposedLimbs
+	// prover action for lengthConsistency;
+	// it checks that decomposedLimb is of length decomposedLen.
+	pa wizard.ProverAction
+	// the length associated with decomposedLimbs
 	decomposedLen []ifaces.Column
 	// decomposedLenPowers = 2^(8*decomposedLen)
 	decomposedLenPowers []ifaces.Column
@@ -91,6 +95,14 @@ func newDecomposition(comp *wizard.CompiledIOP, inp decompositionInputs) decompo
 	}
 
 	// Declare the constraints
+	// check the length consistency between decomposedLimbs and decomposedLen
+	lcInputs := dedicated.LcInputs{
+		Table:    decomposed.decomposedLimbs,
+		TableLen: decomposed.decomposedLen,
+		MaxLen:   MAXNBYTE,
+		Name:     inp.Name,
+	}
+	decomposed.pa = dedicated.LengthConsistency(comp, lcInputs)
 	decomposed.csFilter(comp)
 	decomposed.csDecomposLen(comp, inp.imported)
 	decomposed.csDecomposedLimbs(comp, inp.imported)
@@ -256,6 +268,9 @@ func (decomposed *decomposition) Assign(run *wizard.ProverRuntime) {
 
 		run.AssignColumn(filter.GetColID(), smartvectors.FromCompactWithShape(a, compactFilter))
 	}
+
+	// assign Iszero()
+	decomposed.pa.Run(run)
 }
 
 // it builds the inputs for [newDecomposition]
