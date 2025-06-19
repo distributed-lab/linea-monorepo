@@ -158,9 +158,15 @@ func (decomposed *decomposition) csDecomposLen(
 
 // Constraints over the form of decomposedLimbs;
 //
-// - (decomposedLimbs[0] * 2^8 + carry[0] - Limbs[0]) * decompositionHappened == 0 // base case
-// - (decomposedLimbs[i] * 2^8 + carry[i] - Limbs[i] - carry[i-1] * decomposedLenPowers[i]) * decompositionHappened == 0 // for i > 0
-// - (decomposedLimbs[last] - carry[last-1]) * decompositionHappened == 0
+// - (decomposedLimbs[0] * 2^8 + carry[0] - Limbs[0]) * decompositionHappened[i] == 0 // base case
+// - (decomposedLimbs[i] * 2^8 + carry[i] - Limbs[i] - carry[i-1] * decomposedLenPowers[i]) * decompositionHappened[i] == 0 // for i > 0
+// - (decomposedLimbs[last] - carry[last-1]) * decompositionHappened[last] == 0
+//
+// For all cases, where decomposition didn't happen, we have:
+// - (decomposedLimbs[i] - Limbs[i]) * (2 - decompositionHappened[i]) == 0 // for 0 < i < last-1
+//
+// and for last case we check that it's zero:
+// - (decomposedLimbs[last]) * (2 - decompositionHappened[last]) == 0
 func (decomposed decomposition) csDecomposedLimbs(
 	comp *wizard.CompiledIOP,
 	imported Importation,
@@ -220,6 +226,24 @@ func (decomposed decomposition) csDecomposedLimbs(
 		comp.InsertRange(0, ifaces.QueryIDf("%v_Carry_RangeCheck_%v", decomposed.Inputs.Name, i),
 			carry[i], POWER8)
 	}
+
+	// Checks where decomposition didn't happen
+	for i := range limbs {
+		comp.InsertGlobal(0, ifaces.QueryIDf("%v_DecomposedLimbs_NoDecomp_%v", decomposed.Inputs.Name, i),
+			sym.Mul(
+				sym.Sub(
+					sym.Mul(decomposedLimbs[i], decomposeLenToShift(decomposed.decomposedLen[i])),
+					limbs[i],
+				),
+				sym.Sub(2, decompositionHappened),
+			))
+	}
+	// Last column check
+	comp.InsertGlobal(0, ifaces.QueryIDf("%v_DecomposedLimbs_NoDecomp_Last", decomposed.Inputs.Name),
+		sym.Mul(
+			decomposedLimbs[last],
+			sym.Sub(2, decompositionHappened),
+		))
 }
 
 // /  Constraints over the form of filter and decomposedLen;
@@ -522,4 +546,21 @@ func meaningfulBytes(nbytes [][]int, limbs [][]field.Element, row, i int) []byte
 	limbSerialized := limbs[i][row].Bytes()
 	meaningful := limbSerialized[LEFT_ALIGNMENT : LEFT_ALIGNMENT+nbyte]
 	return meaningful
+}
+
+// / We need this to prove that a[i] = b[i] * shift, where shift = 2^8.
+// only when decomposedLen[i] == 1, otherwise it is zero.
+//
+// That's using Lagrange interpolation we found formula for this shift
+// as:
+//
+// f(x) = 510 * x + 1 - 255 * x^2
+func decomposeLenToShift(decomposeLen ifaces.Column) *sym.Expression {
+	return sym.Sub(
+		sym.Add(
+			sym.Mul(sym.NewConstant(510), decomposeLen),
+			sym.NewConstant(1),
+		),
+		sym.Mul(sym.NewConstant(255), sym.Pow(decomposeLen, 2)),
+	)
 }
