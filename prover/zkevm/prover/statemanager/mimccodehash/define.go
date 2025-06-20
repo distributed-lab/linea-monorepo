@@ -64,12 +64,10 @@ type Module struct {
 	inputs Inputs
 
 	// All the columns characterizing the module
-	IsActive ifaces.Column
-	CFI      [common.NbLimbU32]ifaces.Column
-	Limb     [common.NbLimbU128]ifaces.Column // 16 bytes
-	CodeHash [common.NbLimbU256]ifaces.Column
-	// We assume that bytecode size (which is CodeSize) is below ~4GB, so we'll use 32 bits number representation
-	// and, hence, 2 columns.
+	IsActive  ifaces.Column
+	CFI       [common.NbLimbU32]ifaces.Column
+	Limb      [common.NbLimbU128]ifaces.Column
+	CodeHash  [common.NbLimbU256]ifaces.Column
 	CodeSize  [common.NbLimbU32]ifaces.Column
 	IsNewHash ifaces.Column
 	IsHashEnd ifaces.Column
