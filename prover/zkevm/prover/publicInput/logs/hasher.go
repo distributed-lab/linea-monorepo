@@ -11,6 +11,7 @@ import (
 	sym "github.com/consensys/linea-monorepo/prover/symbolic"
 	commonconstraints "github.com/consensys/linea-monorepo/prover/zkevm/prover/common/common_constraints"
 	util "github.com/consensys/linea-monorepo/prover/zkevm/prover/publicInput/utilities"
+	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 )
 
 // LogHasher is used to MiMC-hash the data in LogMessages. Using a zero initial stata,
@@ -28,7 +29,7 @@ import (
 // The final value of the chained hash can be retrieved as ---> hashSecond[ctMax[any index]]
 type LogHasher struct {
 	// the hash value after each step, as explained in the description of LogHasher
-	hashFirst, hashSecond ifaces.Column
+	hashes [common.NbLimbU256]ifaces.Column
 	// L2L1 logs: inter is a shifted version of hashSecond, necessary due to how the MiMC constraints operate
 	inter ifaces.Column
 	// the relevant value of the hash (the last value when isActive ends)
@@ -75,7 +76,7 @@ func DefineHasher(comp *wizard.CompiledIOP, hasher LogHasher, name string, fetch
 
 // AssignHasher assigns the data in the LogHasher using the ExtractedData fetched from the arithmetization
 func AssignHasher(run *wizard.ProverRuntime, hasher LogHasher, fetched ExtractedData) {
-	size := fetched.Hi.Size()
+	size := fetched.Data[0].Size()
 	hashFirst := make([]field.Element, size)
 	hashSecond := make([]field.Element, size)
 	inter := make([]field.Element, size)
