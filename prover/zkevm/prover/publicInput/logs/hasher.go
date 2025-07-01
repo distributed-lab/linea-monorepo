@@ -1,7 +1,7 @@
 package logs
 
 import (
-	"github.com/consensys/linea-monorepo/prover/crypto/mimc"
+	"fmt"
 	"github.com/consensys/linea-monorepo/prover/maths/common/smartvectors"
 	"github.com/consensys/linea-monorepo/prover/maths/field"
 	"github.com/consensys/linea-monorepo/prover/protocol/column"
@@ -9,9 +9,9 @@ import (
 	"github.com/consensys/linea-monorepo/prover/protocol/ifaces"
 	"github.com/consensys/linea-monorepo/prover/protocol/wizard"
 	sym "github.com/consensys/linea-monorepo/prover/symbolic"
+	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 	commonconstraints "github.com/consensys/linea-monorepo/prover/zkevm/prover/common/common_constraints"
 	util "github.com/consensys/linea-monorepo/prover/zkevm/prover/publicInput/utilities"
-	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 )
 
 // LogHasher is used to MiMC-hash the data in LogMessages. Using a zero initial stata,
@@ -29,21 +29,24 @@ import (
 // The final value of the chained hash can be retrieved as ---> hashSecond[ctMax[any index]]
 type LogHasher struct {
 	// the hash value after each step, as explained in the description of LogHasher
-	hashes [common.NbLimbU256]ifaces.Column
+	hash [common.NbLimbU256]ifaces.Column
 	// L2L1 logs: inter is a shifted version of hashSecond, necessary due to how the MiMC constraints operate
-	inter ifaces.Column
+	inter [common.NbLimbU256]ifaces.Column
 	// the relevant value of the hash (the last value when isActive ends)
-	HashFinal ifaces.Column
+	HashFinal [common.NbLimbU256]ifaces.Column
 }
 
 // NewLogHasher returns a new LogHasher with initialized columns that are not constrained.
 func NewLogHasher(comp *wizard.CompiledIOP, size int, name string) LogHasher {
-	return LogHasher{
-		hashFirst:  util.CreateCol(name, "HASH_FIRST", size, comp),
-		hashSecond: util.CreateCol(name, "HASH_SECOND", size, comp),
-		inter:      util.CreateCol(name, "INTER", size, comp),
-		HashFinal:  util.CreateCol(name, "HASH_FINAL", size, comp),
+	var res LogHasher
+
+	for i := range res.hash {
+		res.hash[i] = util.CreateCol(name, fmt.Sprintf("HASH_%d", i), size, comp)
+		res.inter[i] = util.CreateCol(name, fmt.Sprintf("INTER_%d", i), size, comp)
+		res.HashFinal[i] = util.CreateCol(name, fmt.Sprintf("HASH_FINAL_%d", i), size, comp)
 	}
+
+	return res
 }
 
 // DefineHasher specifies the constraints of the LogHasher with respect to the ExtractedData fetched from the arithmetization
@@ -51,65 +54,75 @@ func DefineHasher(comp *wizard.CompiledIOP, hasher LogHasher, name string, fetch
 
 	// Needed for the limitless prover to understand that the columns are
 	// not just empty with just padding and suboptimal representation.
-	pragmas.MarkFullColumn(hasher.inter)
-	pragmas.MarkFullColumn(hasher.hashFirst)
-	pragmas.MarkFullColumn(hasher.hashSecond)
+	for i := range hasher.hash {
+		pragmas.MarkFullColumn(hasher.hash[i])
+		pragmas.MarkFullColumn(hasher.inter[i])
+	}
 
 	// MiMC constraints
-	comp.InsertMiMC(0, ifaces.QueryIDf("%s_%s", name, "MIMC_CONSTRAINT"), fetched.Hi, hasher.inter, hasher.hashFirst, nil)
-	comp.InsertMiMC(0, ifaces.QueryIDf("%s_%s", name, "MIMC_CONSTRAINT_SECOND"), fetched.Lo, hasher.hashFirst, hasher.hashSecond, nil)
+	comp.InsertMiMC(0, ifaces.QueryIDf("%s_%s", name, "MIMC_CONSTRAINT"), fetched.Data, hasher.inter, hasher.hash, nil)
 
-	// intermediary state integrity
-	comp.InsertGlobal(0, ifaces.QueryIDf("%s_%s", name, "CONSISTENCY_INTER_AND_HASH_LAST"), // LAST is either hashSecond or hashThird
-		sym.Sub(hasher.hashSecond,
-			column.Shift(hasher.inter, 1),
-		),
-	)
+	for i := range hasher.hash {
+		// intermediary state integrity
+		comp.InsertGlobal(0, ifaces.QueryIDf("%s_CONSISTENCY_INTER_AND_HASH_%d", name, i),
+			sym.Sub(hasher.hash[i], column.Shift(hasher.inter[i], 1)),
+		)
 
-	// inter, the old state column, is initially zero
-	comp.InsertLocal(0, ifaces.QueryIDf("%s_%s", name, "INTER_LOCAL"), ifaces.ColumnAsVariable(hasher.inter))
+		// inter, the old state column, is initially zero
+		comp.InsertLocal(0, ifaces.QueryIDf("%s_INTER_LOCAL_%d", name, i), ifaces.ColumnAsVariable(hasher.inter[i]))
 
-	// constrain HashFinal
-	commonconstraints.MustBeConstant(comp, hasher.HashFinal)
-	util.CheckLastELemConsistency(comp, fetched.filterFetched, hasher.hashSecond, hasher.HashFinal, name)
+		// constrain HashFinal
+		commonconstraints.MustBeConstant(comp, hasher.HashFinal[i])
+		util.CheckLastELemConsistency(comp, fetched.filterFetched, hasher.hash[i], hasher.HashFinal[i], name)
+	}
 }
 
 // AssignHasher assigns the data in the LogHasher using the ExtractedData fetched from the arithmetization
 func AssignHasher(run *wizard.ProverRuntime, hasher LogHasher, fetched ExtractedData) {
 	size := fetched.Data[0].Size()
-	hashFirst := make([]field.Element, size)
-	hashSecond := make([]field.Element, size)
-	inter := make([]field.Element, size)
+	var hash, inter [common.NbLimbU256][]field.Element
+	for i := range hash {
+		hash[i] = make([]field.Element, size)
+		inter[i] = make([]field.Element, size)
+	}
 
-	var (
-		hashFinal field.Element
-	)
+	var fetchedData, hashFinal [common.NbLimbU256]field.Element
+	// the initial state is zero
+	state := make([]field.Element, common.NbLimbU256)
+	for i := range state {
+		state[i].SetZero()
+	}
 
-	state := field.Zero() // the initial state is zero
-	for i := 0; i < len(hashFirst); i++ {
-		// first, hash the HI part of the fetched log message
-		state = mimc.BlockCompression(state, fetched.Hi.GetColAssignmentAt(run, i))
-		hashFirst[i].Set(&state)
+	for i := 0; i < size; i++ {
+		for j := range fetchedData {
+			fetchedData[j] = fetched.Data[j].GetColAssignmentAt(run, i)
+		}
 
-		// secondly, hash the Lo part of the fetched log message
-		state = mimc.BlockCompression(state, fetched.Lo.GetColAssignmentAt(run, i))
-		hashSecond[i].Set(&state)
+		state = common.BlockCompression(state, fetchedData[:])
+		for j := range hash {
+			hash[j][i] = state[j]
+		}
 
 		// the data in hashSecond is used to initialize the next initial state, stored in the inter column
-		if i+1 < len(hashFirst) {
-			inter[i+1] = hashSecond[i]
+		if i+1 < size {
+			for j := range inter {
+				inter[j][i+1] = state[j]
+			}
 		}
 
 		isActive := fetched.filterFetched.GetColAssignmentAt(run, i)
 		// continuously update HashFinal
 		if isActive.IsOne() {
-			hashFinal.Set(&hashSecond[i])
+			for j := range hashFinal {
+				hashFinal[j] = state[j]
+			}
 		}
 	}
 
 	// assign the hasher columns
-	run.AssignColumn(hasher.hashFirst.GetColID(), smartvectors.NewRegular(hashFirst))
-	run.AssignColumn(hasher.hashSecond.GetColID(), smartvectors.NewRegular(hashSecond))
-	run.AssignColumn(hasher.inter.GetColID(), smartvectors.NewRegular(inter))
-	run.AssignColumn(hasher.HashFinal.GetColID(), smartvectors.NewConstant(hashFinal, size))
+	for i := range hasher.hash {
+		run.AssignColumn(hasher.hash[i].GetColID(), smartvectors.NewRegular(hash[i]))
+		run.AssignColumn(hasher.inter[i].GetColID(), smartvectors.NewRegular(inter[i]))
+		run.AssignColumn(hasher.HashFinal[i].GetColID(), smartvectors.NewConstant(hashFinal[i], size))
+	}
 }
