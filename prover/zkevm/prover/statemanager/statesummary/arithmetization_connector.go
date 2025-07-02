@@ -238,10 +238,6 @@ func accountIntegrationDefineInitial(comp *wizard.CompiledIOP, ss Module, smc Hu
 		)
 
 		stateSummaryTable = []ifaces.Column{ss.Account.Address,
-			ss.Account.Initial.Balance,
-			ss.Account.Initial.CodeSize,
-			ss.Account.Initial.ExpectedHubCodeHash.Hi,
-			ss.Account.Initial.ExpectedHubCodeHash.Lo,
 			ss.BatchNumber,
 			ss.Account.Initial.Exists,
 		}
@@ -257,6 +253,10 @@ func accountIntegrationDefineInitial(comp *wizard.CompiledIOP, ss Module, smc Hu
 		}
 	)
 
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Initial.ExpectedHubCodeHash.Hi[:]...)
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Initial.ExpectedHubCodeHash.Lo[:]...)
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Initial.CodeSize[:]...)
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Initial.Balance[:]...)
 	stateSummaryTable = append(stateSummaryTable, ss.Account.Initial.Nonce[:]...)
 
 	// comp.InsertInclusionDoubleConditional(0,
@@ -359,14 +359,14 @@ func accountIntegrationDefineFinal(comp *wizard.CompiledIOP, ss Module, smc HubC
 	filterSummary := comp.InsertCommit(0, "FILTER_CONNECTOR_SUMMARY_ARITHMETIZATION_ACCOUNT_FINAL_SUMMARY", ss.IsStorage.Size())
 	stateSummaryTable := []ifaces.Column{
 		ss.Account.Address,
-		ss.Account.Final.Balance,
-		ss.Account.Final.CodeSize,
-		ss.Account.Final.ExpectedHubCodeHash.Hi,
-		ss.Account.Final.ExpectedHubCodeHash.Lo,
 		ss.BatchNumber,
 		ss.Account.Final.Exists,
 	}
 
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Final.ExpectedHubCodeHash.Hi[:]...)
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Final.ExpectedHubCodeHash.Lo[:]...)
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Final.CodeSize[:]...)
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Final.Balance[:]...)
 	stateSummaryTable = append(stateSummaryTable, ss.Account.Final.Nonce[:]...)
 
 	arithTable := []ifaces.Column{
@@ -471,19 +471,21 @@ func storageIntegrationDefineInitial(comp *wizard.CompiledIOP, ss Module, smc Hu
 
 	summaryTable := []ifaces.Column{
 		ss.Account.Address,
-		ss.Storage.Key.Hi,
-		ss.Storage.Key.Lo,
-		ss.Storage.OldValue.Hi,
-		ss.Storage.OldValue.Lo,
 		ss.BatchNumber,
 	}
+
+	summaryTable = append(summaryTable, ss.Storage.Key.Hi[:]...)
+	summaryTable = append(summaryTable, ss.Storage.Key.Lo[:]...)
+	summaryTable = append(summaryTable, ss.Storage.OldValue.Hi[:]...)
+	summaryTable = append(summaryTable, ss.Storage.OldValue.Lo[:]...)
+
 	arithTable := []ifaces.Column{
 		smc.Address,
+		smc.BlockNumber,
 		smc.KeyHI,
 		smc.KeyLO,
 		smc.ValueHICurr,
 		smc.ValueLOCurr,
-		smc.BlockNumber,
 	}
 	// comp.InsertInclusionDoubleConditional(
 	// 	0,
@@ -636,19 +638,15 @@ func storageIntegrationDefineFinal(comp *wizard.CompiledIOP, ss Module, smc HubC
 	var (
 		summaryTable = []ifaces.Column{
 			ss.Account.Address,
-			ss.Storage.Key.Hi,
-			ss.Storage.Key.Lo,
-			ss.Storage.NewValue.Hi,
-			ss.Storage.NewValue.Lo,
 			ss.BatchNumber,
 		}
 
 		arithTable = []ifaces.Column{smc.Address,
+			smc.BlockNumber,
 			smc.KeyHI,
 			smc.KeyLO,
 			smc.ValueHINext,
 			smc.ValueLONext,
-			smc.BlockNumber,
 		}
 
 		filterArith = comp.InsertCommit(0,
@@ -671,6 +669,11 @@ func storageIntegrationDefineFinal(comp *wizard.CompiledIOP, ss Module, smc HubC
 			smc.AddressHI.Size(),
 		)
 	)
+
+	summaryTable = append(summaryTable, ss.Storage.Key.Hi[:]...)
+	summaryTable = append(summaryTable, ss.Storage.Key.Lo[:]...)
+	summaryTable = append(summaryTable, ss.Storage.NewValue.Hi[:]...)
+	summaryTable = append(summaryTable, ss.Storage.NewValue.Lo[:]...)
 
 	// comp.InsertInclusionDoubleConditional(0,
 	// 	"LOOKUP_STATE_MGR_ARITH_TO_STATE_SUMMARY_FINAL_STORAGE",
