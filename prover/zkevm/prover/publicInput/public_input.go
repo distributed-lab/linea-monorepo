@@ -171,7 +171,7 @@ func newPublicInput(
 	fetchedRollingHash := logs.NewExtractedData(comp, inp.LogCols.Ct.Size(), "PUBLIC_INPUT_ROLLING_HASH")
 	logSelectors := logs.NewSelectorColumns(comp, inp.LogCols)
 	logHasherL2l1 := logs.NewLogHasher(comp, inp.LogCols.Ct.Size(), "PUBLIC_INPUT_L2L1LOGS")
-	rollingSelector := logs.NewRollingSelector(comp, "PUBLIC_INPUT_ROLLING_SEL", fetchedRollingHash.Data[0].Size(), fetchedRollingMsg.Data[0].Size())
+	rollingSelector := logs.NewRollingSelector(comp, "PUBLIC_INPUT_ROLLING_SEL", fetchedRollingHash.Data[0].Size())
 
 	// Define Logs: Fetchers, Selectors and Hasher
 	logs.DefineExtractedData(comp, inp.LogCols, logSelectors, fetchedL2L1, logs.L2L1)
@@ -198,7 +198,7 @@ func newPublicInput(
 
 	// ExecutionDataCollector
 	limbColSize := edc.GetSummarySize(inp.TxnData, inp.RlpTxn)
-	limbColSize = 2 * limbColSize // we need to artificially blow up the column size by 2, or padding will fail
+	limbColSize = 4 * limbColSize // we need to artificially blow up the column size by 2, or padding will fail
 	execDataCollector := edc.NewExecutionDataCollector(comp, "EXECUTION_DATA_COLLECTOR", limbColSize)
 	edc.DefineExecutionDataCollector(comp, execDataCollector, "EXECUTION_DATA_COLLECTOR", timestampFetcher, blockTxnMeta, txnDataFetcher, rlpFetcher)
 
@@ -210,7 +210,7 @@ func newPublicInput(
 			Index:   execDataCollector.Ct,
 			ToHash:  execDataCollector.IsActive,
 			NBytes:  execDataCollector.NoBytes,
-			Limbs:   execDataCollector.Limb,
+			Limbs:   execDataCollector.Limbs[:],
 		}},
 		PaddingStrategy: generic.MiMCUsecase,
 	}
@@ -305,15 +305,11 @@ func (pi *PublicInput) generateExtractor(comp *wizard.CompiledIOP) {
 
 	pi.Extractor = FunctionalInputExtractor{
 		DataNbBytes:   createNewLocalOpening(pi.DataNbBytes),
-		DataChecksum:  createNewLocalOpening(pi.ExecMiMCHasher.HashFinal),
-		L2MessageHash: createNewLocalOpening(pi.LogHasher.HashFinal),
 		NBytesChainID: createNewLocalOpening(pi.ChainIDNBytes),
 	}
 
 	comp.PublicInputs = append(comp.PublicInputs,
 		wizard.PublicInput{Name: DataNbBytes, Acc: accessors.NewLocalOpeningAccessor(pi.Extractor.DataNbBytes, 0)},
-		wizard.PublicInput{Name: DataChecksum, Acc: accessors.NewLocalOpeningAccessor(pi.Extractor.DataChecksum, 0)},
-		wizard.PublicInput{Name: L2MessageHash, Acc: accessors.NewLocalOpeningAccessor(pi.Extractor.L2MessageHash, 0)},
 		wizard.PublicInput{Name: NBytesChainID, Acc: accessors.NewLocalOpeningAccessor(pi.Extractor.NBytesChainID, 0)},
 	)
 
@@ -322,6 +318,8 @@ func (pi *PublicInput) generateExtractor(comp *wizard.CompiledIOP) {
 		pi.Extractor.FinalStateRootHash[i] = createNewLocalOpening(pi.RootHashFetcher.Last[i])
 		pi.Extractor.FirstRollingHashUpdate[i] = createNewLocalOpening(pi.RollingHashFetcher.First[i])
 		pi.Extractor.LastRollingHashUpdate[i] = createNewLocalOpening(pi.RollingHashFetcher.Last[i])
+		pi.Extractor.L2MessageHash[i] = createNewLocalOpening(pi.LogHasher.HashFinal[i])
+		pi.Extractor.DataChecksum[i] = createNewLocalOpening(pi.ExecMiMCHasher.HashFinal[i])
 
 		comp.PublicInputs = append(comp.PublicInputs,
 			wizard.PublicInput{
@@ -339,6 +337,14 @@ func (pi *PublicInput) generateExtractor(comp *wizard.CompiledIOP) {
 			wizard.PublicInput{
 				Name: fmt.Sprintf("%s_%d", LastRollingHashUpdate, i),
 				Acc:  accessors.NewLocalOpeningAccessor(pi.Extractor.LastRollingHashUpdate[i], 0),
+			},
+			wizard.PublicInput{
+				Name: fmt.Sprintf("%s_%d", L2MessageHash, i),
+				Acc:  accessors.NewLocalOpeningAccessor(pi.Extractor.L2MessageHash[i], 0),
+			},
+			wizard.PublicInput{
+				Name: DataChecksum,
+				Acc:  accessors.NewLocalOpeningAccessor(pi.Extractor.DataChecksum[i], 0),
 			},
 		)
 	}
