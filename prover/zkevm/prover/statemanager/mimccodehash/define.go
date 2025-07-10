@@ -154,8 +154,8 @@ func NewModule(comp *wizard.CompiledIOP, inputs Inputs) (mh Module) {
 func (mh *Module) checkConsistency(comp *wizard.CompiledIOP) {
 
 	// TODO: fix MiMC query
-	// NewState = MiMC(PrevState, Limb)
-	//comp.InsertMiMC(mh.inputs.Round, mh.qname("MiMC_CODE_HASH"), mh.Limb, mh.PrevState, mh.NewState, nil)
+	//NewState = MiMC(PrevState, Limb)
+	comp.InsertMiMC(mh.Inputs.Round, mh.qname("MiMC_CODE_HASH"), mh.Limb[0], mh.PrevState[0], mh.NewState[0], nil)
 
 	// Local constraint IsNewHash starts with 1
 	comp.InsertLocal(mh.Inputs.Round, mh.qname("IS_NEW_HASH_LOCAL"), sym.Sub(mh.IsNewHash, mh.IsActive))
