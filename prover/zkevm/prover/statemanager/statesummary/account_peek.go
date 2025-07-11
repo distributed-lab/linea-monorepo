@@ -53,7 +53,7 @@ type AccountPeek struct {
 
 	// Address represents which account is being peeked by the module.
 	// It is assigned by providing
-	Address ifaces.Column
+	Address [common.NbLimbEthAddress]ifaces.Column
 
 	// AddressHash is the hash of the account address
 	AddressHash [common.NbLimbU256]ifaces.Column
@@ -98,7 +98,10 @@ func newAccountPeek(comp *wizard.CompiledIOP, size int) AccountPeek {
 	accPeek := AccountPeek{
 		Initial: newAccount(comp, size, "OLD_ACCOUNT"),
 		Final:   newAccount(comp, size, "NEW_ACCOUNT"),
-		Address: createCol("ADDRESS"),
+	}
+
+	for i := range common.NbLimbEthAddress {
+		accPeek.Address[i] = createCol(fmt.Sprintf("ACCOUNT_%v", i))
 	}
 
 	initialHashCols := [][]ifaces.Column{accPeek.Initial.Nonce[:]}
@@ -133,7 +136,7 @@ func newAccountPeek(comp *wizard.CompiledIOP, size int) AccountPeek {
 	accPeek.ComputeAddressHash = mimc.HashOf(
 		comp,
 		[][]ifaces.Column{
-			{accPeek.Address},
+			accPeek.Address[:],
 		},
 	)
 
@@ -253,16 +256,21 @@ func newAccount(comp *wizard.CompiledIOP, size int, name string) Account {
 // builders relating to AccountPeek
 type accountPeekAssignmentBuilder struct {
 	initial, final accountAssignmentBuilder
-	address        *common.VectorBuilder
+	address        [common.NbLimbEthAddress]*common.VectorBuilder
 }
 
 // newAccountPeekAssignmentBuilder initializes a fresh accountPeekAssignmentBuilder
 func newAccountPeekAssignmentBuilder(ap *AccountPeek) accountPeekAssignmentBuilder {
-	return accountPeekAssignmentBuilder{
+	res := accountPeekAssignmentBuilder{
 		initial: newAccountAssignmentBuilder(&ap.Initial),
 		final:   newAccountAssignmentBuilder(&ap.Final),
-		address: common.NewVectorBuilder(ap.Address),
 	}
+
+	for i := range common.NbLimbEthAddress {
+		res.address[i] = common.NewVectorBuilder(ap.Address[i])
+	}
+
+	return res
 }
 
 // accountAssignmentBuilder is a convenience structure storing the column
@@ -322,8 +330,8 @@ func (ss *accountAssignmentBuilder) pushAll(acc types.Account) {
 
 		balanceLimbs := common.SplitBytes(balancePaddedBytes)
 		for i := range common.NbLimbU128 {
-			limbBytes32 := types.LeftPadToBytes32(balanceLimbs[i])
-			ss.balance[i].PushBytes(limbBytes32[:])
+			limbBytes := common.LeftPadToFrBytes(balanceLimbs[i])
+			ss.balance[i].PushBytes(limbBytes)
 		}
 
 		ss.exists.PushOne()
@@ -354,13 +362,13 @@ func (ss *accountAssignmentBuilder) pushAll(acc types.Account) {
 
 	mimcCodeHashLimbs := common.SplitBytes(acc.MimcCodeHash[:])
 	for i := range common.NbLimbU256 {
-		limbBytes32 := types.LeftPadToBytes32(mimcCodeHashLimbs[i])
-		ss.miMCCodeHash[i].PushBytes(limbBytes32[:])
+		limbBytes := common.LeftPadToFrBytes(mimcCodeHashLimbs[i])
+		ss.miMCCodeHash[i].PushBytes(limbBytes)
 	}
 
 	for i, limbBytes := range common.SplitBytes(acc.StorageRoot[:]) {
-		limbBytes32 := types.LeftPadToBytes32(limbBytes)
-		ss.storageRoot[i].PushBytes(limbBytes32[:])
+		limbBytesPadded := common.LeftPadToFrBytes(limbBytes)
+		ss.storageRoot[i].PushBytes(limbBytesPadded)
 	}
 
 	ss.existsAndHasNonEmptyCodeHash.PushBoolean(accountExists && acc.CodeSize > 0)
@@ -388,8 +396,8 @@ func (ss *accountAssignmentBuilder) pushOverrideStorageRoot(
 
 		balanceLimbs := common.SplitBytes(balancePaddedBytes)
 		for i := range common.NbLimbU128 {
-			limbBytes32 := types.LeftPadToBytes32(balanceLimbs[i])
-			ss.balance[i].PushBytes(limbBytes32[:])
+			limbBytes := common.LeftPadToFrBytes(balanceLimbs[i])
+			ss.balance[i].PushBytes(limbBytes)
 		}
 
 		ss.exists.PushOne()
@@ -420,12 +428,12 @@ func (ss *accountAssignmentBuilder) pushOverrideStorageRoot(
 
 	mimcCodeHashLimbs := common.SplitBytes(acc.MimcCodeHash[:])
 	for i := range common.NbLimbU256 {
-		limbBytes := types.LeftPadToBytes32(mimcCodeHashLimbs[i])
-		ss.miMCCodeHash[i].PushBytes(limbBytes[:])
+		limbBytes := common.LeftPadToFrBytes(mimcCodeHashLimbs[i])
+		ss.miMCCodeHash[i].PushBytes(limbBytes)
 	}
 
 	for i := range storageRoot {
-		ss.storageRoot[i].PushBytes32(types.LeftPadToBytes32(storageRoot[i]))
+		ss.storageRoot[i].PushBytes(common.LeftPadToFrBytes(storageRoot[i]))
 	}
 
 	ss.existsAndHasNonEmptyCodeHash.PushBoolean(accountExists && acc.CodeSize > 0)
