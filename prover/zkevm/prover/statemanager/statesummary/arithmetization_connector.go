@@ -1,6 +1,7 @@
 package statesummary
 
 import (
+	"github.com/consensys/linea-monorepo/prover/zkevm/prover/common"
 	"sync"
 
 	"github.com/consensys/linea-monorepo/prover/protocol/column"
@@ -62,17 +63,20 @@ func (ss *Module) assignArithmetizationLink(run *wizard.ProverRuntime) {
 		wg.Wait()
 	}
 
-	runConcurrent([]wizard.ProverAction{
+	var arithActions []wizard.ProverAction
+	arithActions = append(arithActions, ss.ArithmetizationLink.ScpSelector.ComputeSelectorSTKeyDiffHi[:]...)
+	arithActions = append(arithActions, ss.ArithmetizationLink.ScpSelector.ComputeSelectorSTKeyDiffLo[:]...)
+	arithActions = append(arithActions, ss.ArithmetizationLink.ScpSelector.ComputeSelectorBlockNoDiff[:]...)
+	arithActions = append(arithActions,
 		ss.ArithmetizationLink.ScpSelector.ComputeSelectorMinDeplBlock,
 		ss.ArithmetizationLink.ScpSelector.ComputeSelectorMaxDeplBlock,
-		ss.ArithmetizationLink.ScpSelector.ComputeSelectorEmptySTValueHi,
-		ss.ArithmetizationLink.ScpSelector.ComputeSelectorEmptySTValueLo,
-		ss.ArithmetizationLink.ScpSelector.ComputeSelectorEmptySTValueNextHi,
-		ss.ArithmetizationLink.ScpSelector.ComputeSelectorEmptySTValueNextLo,
-		ss.ArithmetizationLink.ScpSelector.ComputeSelectorSTKeyDiffHi,
-		ss.ArithmetizationLink.ScpSelector.ComputeSelectorSTKeyDiffLo,
-		ss.ArithmetizationLink.ScpSelector.ComputeSelectorBlockNoDiff,
-	})
+	)
+	arithActions = append(arithActions, ss.ArithmetizationLink.ScpSelector.ComputeSelectorEmptySTValueHi[:]...)
+	arithActions = append(arithActions, ss.ArithmetizationLink.ScpSelector.ComputeSelectorEmptySTValueLo[:]...)
+	arithActions = append(arithActions, ss.ArithmetizationLink.ScpSelector.ComputeSelectorEmptySTValueNextHi[:]...)
+	arithActions = append(arithActions, ss.ArithmetizationLink.ScpSelector.ComputeSelectorEmptySTValueNextLo[:]...)
+
+	runConcurrent(arithActions)
 
 }
 
@@ -82,19 +86,20 @@ and the SCP (storage consistency permutation)
 */
 type HubColumnSet struct {
 	// helper column
-	Address ifaces.Column
+	Address [common.NbLimbEthAddress]ifaces.Column
 	// account data
-	AddressHI, AddressLO                                 ifaces.Column
-	Nonce, NonceNew                                      ifaces.Column
-	CodeHashHI, CodeHashLO, CodeHashHINew, CodeHashLONew ifaces.Column
-	CodeSizeOld, CodeSizeNew                             ifaces.Column
-	BalanceOld, BalanceNew                               ifaces.Column
+	AddressHI                                            [common.NbLimbU32]ifaces.Column
+	AddressLO                                            [common.NbLimbU128]ifaces.Column
+	Nonce, NonceNew                                      [common.NbLimbU64]ifaces.Column
+	CodeHashHI, CodeHashLO, CodeHashHINew, CodeHashLONew [common.NbLimbU128]ifaces.Column
+	CodeSizeOld, CodeSizeNew                             [common.NbLimbU64]ifaces.Column
+	BalanceOld, BalanceNew                               [common.NbLimbU128]ifaces.Column
 	// storage data
-	KeyHI, KeyLO                                       ifaces.Column
-	ValueHICurr, ValueLOCurr, ValueHINext, ValueLONext ifaces.Column
+	KeyHI, KeyLO                                       [common.NbLimbU128]ifaces.Column
+	ValueHICurr, ValueLOCurr, ValueHINext, ValueLONext [common.NbLimbU128]ifaces.Column
 	// helper numbers
-	DeploymentNumber, DeploymentNumberInf ifaces.Column
-	BlockNumber                           ifaces.Column
+	DeploymentNumber, DeploymentNumberInf [common.NbLimbU32]ifaces.Column
+	BlockNumber                           [common.NbLimbU64]ifaces.Column
 	// helper columns
 	Exists, ExistsNew ifaces.Column
 	PeekAtAccount     ifaces.Column
@@ -106,7 +111,7 @@ type HubColumnSet struct {
 	FirstAOCBlock, LastAOCBlock ifaces.Column
 	FirstKOCBlock, LastKOCBlock ifaces.Column
 	// block deployment
-	MinDeplBlock, MaxDeplBlock ifaces.Column
+	MinDeplBlock, MaxDeplBlock [common.NbLimbU32]ifaces.Column
 }
 
 /*
@@ -117,17 +122,17 @@ type scpSelector struct {
 	SelectorMinDeplBlock, SelectorMaxDeplBlock               ifaces.Column
 	ComputeSelectorMinDeplBlock, ComputeSelectorMaxDeplBlock wizard.ProverAction
 	// selectors for empty keys, current values
-	SelectorEmptySTValueHi, SelectorEmptySTValueLo               ifaces.Column
-	ComputeSelectorEmptySTValueHi, ComputeSelectorEmptySTValueLo wizard.ProverAction
+	SelectorEmptySTValueHi, SelectorEmptySTValueLo               [common.NbLimbU128]ifaces.Column
+	ComputeSelectorEmptySTValueHi, ComputeSelectorEmptySTValueLo [common.NbLimbU128]wizard.ProverAction
 	// selectors for empty keys, next values
-	SelectorEmptySTValueNextHi, SelectorEmptySTValueNextLo               ifaces.Column
-	ComputeSelectorEmptySTValueNextHi, ComputeSelectorEmptySTValueNextLo wizard.ProverAction
+	SelectorEmptySTValueNextHi, SelectorEmptySTValueNextLo               [common.NbLimbU128]ifaces.Column
+	ComputeSelectorEmptySTValueNextHi, ComputeSelectorEmptySTValueNextLo [common.NbLimbU128]wizard.ProverAction
 	// storage key difference selectors
-	SelectorSTKeyDiffHi, SelectorSTKeyDiffLo               ifaces.Column
-	ComputeSelectorSTKeyDiffHi, ComputeSelectorSTKeyDiffLo wizard.ProverAction
+	SelectorSTKeyDiffHi, SelectorSTKeyDiffLo               [common.NbLimbU128]ifaces.Column
+	ComputeSelectorSTKeyDiffHi, ComputeSelectorSTKeyDiffLo [common.NbLimbU128]wizard.ProverAction
 	// block number key difference selectors
-	SelectorBlockNoDiff        ifaces.Column
-	ComputeSelectorBlockNoDiff wizard.ProverAction
+	SelectorBlockNoDiff        [common.NbLimbU64]ifaces.Column
+	ComputeSelectorBlockNoDiff [common.NbLimbU64]wizard.ProverAction
 }
 
 /*
@@ -147,47 +152,70 @@ func newScpSelector(comp *wizard.CompiledIOP, smc HubColumnSet) scpSelector {
 	)
 
 	// ST value selectors
-	SelectorEmptySTValueHi, ComputeSelectorEmptySTValueHi := dedicated.IsZero(
-		comp,
-		ifaces.ColumnAsVariable(smc.ValueHICurr),
-	)
+	var selectorEmptySTValueHi [common.NbLimbU128]ifaces.Column
+	var selectorEmptySTValueLo [common.NbLimbU128]ifaces.Column
+	var selectorEmptySTValueNextHi [common.NbLimbU128]ifaces.Column
+	var selectorEmptySTValueNextLo [common.NbLimbU128]ifaces.Column
 
-	SelectorEmptySTValueLo, ComputeSelectorEmptySTValueLo := dedicated.IsZero(
-		comp,
-		ifaces.ColumnAsVariable(smc.ValueLOCurr),
-	)
-	SelectorEmptySTValueNextHi, ComputeSelectorEmptySTValueNextHi := dedicated.IsZero(
-		comp,
-		ifaces.ColumnAsVariable(smc.ValueHINext),
-	)
+	var computeSelectorEmptySTValueHi [common.NbLimbU128]wizard.ProverAction
+	var computeSelectorEmptySTValueLo [common.NbLimbU128]wizard.ProverAction
+	var computeSelectorEmptySTValueNextHi [common.NbLimbU128]wizard.ProverAction
+	var computeSelectorEmptySTValueNextLo [common.NbLimbU128]wizard.ProverAction
+	for i := range common.NbLimbU128 {
+		selectorEmptySTValueHi[i], computeSelectorEmptySTValueHi[i] = dedicated.IsZero(
+			comp,
+			ifaces.ColumnAsVariable(smc.ValueHICurr[i]),
+		)
 
-	SelectorEmptySTValueNextLo, ComputeSelectorEmptySTValueNextLo := dedicated.IsZero(
-		comp,
-		ifaces.ColumnAsVariable(smc.ValueLONext),
-	)
+		selectorEmptySTValueLo[i], computeSelectorEmptySTValueLo[i] = dedicated.IsZero(
+			comp,
+			ifaces.ColumnAsVariable(smc.ValueLOCurr[i]),
+		)
+		selectorEmptySTValueNextHi[i], computeSelectorEmptySTValueNextHi[i] = dedicated.IsZero(
+			comp,
+			ifaces.ColumnAsVariable(smc.ValueHINext[i]),
+		)
+
+		selectorEmptySTValueNextLo[i], computeSelectorEmptySTValueNextLo[i] = dedicated.IsZero(
+			comp,
+			ifaces.ColumnAsVariable(smc.ValueLONext[i]),
+		)
+	}
+
 	// storage key diff selectors
-	SelectorSTKeyDiffHi, ComputeSelectorSTKeyDiffHi := dedicated.IsZero(
-		comp,
-		sym.Sub(
-			smc.KeyHI,
-			column.Shift(smc.KeyHI, -1),
-		),
-	)
-	SelectorSTKeyDiffLo, ComputeSelectorSTKeyDiffLo := dedicated.IsZero(
-		comp,
-		sym.Sub(
-			smc.KeyLO,
-			column.Shift(smc.KeyLO, -1),
-		),
-	)
+	var selectorSTKeyDiffHi [common.NbLimbU128]ifaces.Column
+	var selectorSTKeyDiffLo [common.NbLimbU128]ifaces.Column
+	var computeSelectorSTKeyDiffHi [common.NbLimbU128]wizard.ProverAction
+	var computeSelectorSTKeyDiffLo [common.NbLimbU128]wizard.ProverAction
+	for i := range common.NbLimbU128 {
+		selectorSTKeyDiffHi[i], computeSelectorSTKeyDiffHi[i] = dedicated.IsZero(
+			comp,
+			sym.Sub(
+				smc.KeyHI[i],
+				column.Shift(smc.KeyHI[i], -1),
+			),
+		)
+
+		selectorSTKeyDiffLo[i], computeSelectorSTKeyDiffLo[i] = dedicated.IsZero(
+			comp,
+			sym.Sub(
+				smc.KeyLO[i],
+				column.Shift(smc.KeyLO[i], -1),
+			),
+		)
+	}
 	// compute selectors for the block number difference
-	SelectorBlockNoDiff, ComputeSelectorBlockNoDiff := dedicated.IsZero(
-		comp,
-		sym.Sub(
-			smc.BlockNumber,
-			column.Shift(smc.BlockNumber, -1),
-		),
-	)
+	var selectorBlockNoDiff [common.NbLimbU64]ifaces.Column
+	var computeSelectorBlockNoDiff [common.NbLimbU64]wizard.ProverAction
+	for i := range common.NbLimbU64 {
+		selectorBlockNoDiff[i], computeSelectorBlockNoDiff[i] = dedicated.IsZero(
+			comp,
+			sym.Sub(
+				smc.BlockNumber[i],
+				column.Shift(smc.BlockNumber[i], -1),
+			),
+		)
+	}
 
 	res := scpSelector{
 		SelectorMinDeplBlock:        SelectorMinDeplNoBlock,
@@ -195,23 +223,23 @@ func newScpSelector(comp *wizard.CompiledIOP, smc HubColumnSet) scpSelector {
 		ComputeSelectorMinDeplBlock: ComputeSelectorMinDeplNoBlock,
 		ComputeSelectorMaxDeplBlock: ComputeSelectorMaxDeplNoBlock,
 		// ST selectors, current
-		SelectorEmptySTValueHi:        SelectorEmptySTValueHi,
-		SelectorEmptySTValueLo:        SelectorEmptySTValueLo,
-		ComputeSelectorEmptySTValueHi: ComputeSelectorEmptySTValueHi,
-		ComputeSelectorEmptySTValueLo: ComputeSelectorEmptySTValueLo,
+		SelectorEmptySTValueHi:        selectorEmptySTValueHi,
+		SelectorEmptySTValueLo:        selectorEmptySTValueLo,
+		ComputeSelectorEmptySTValueHi: computeSelectorEmptySTValueHi,
+		ComputeSelectorEmptySTValueLo: computeSelectorEmptySTValueLo,
 		// ST selectors, next
-		SelectorEmptySTValueNextHi:        SelectorEmptySTValueNextHi,
-		SelectorEmptySTValueNextLo:        SelectorEmptySTValueNextLo,
-		ComputeSelectorEmptySTValueNextHi: ComputeSelectorEmptySTValueNextHi,
-		ComputeSelectorEmptySTValueNextLo: ComputeSelectorEmptySTValueNextLo,
+		SelectorEmptySTValueNextHi:        selectorEmptySTValueNextHi,
+		SelectorEmptySTValueNextLo:        selectorEmptySTValueNextLo,
+		ComputeSelectorEmptySTValueNextHi: computeSelectorEmptySTValueNextHi,
+		ComputeSelectorEmptySTValueNextLo: computeSelectorEmptySTValueNextLo,
 		// ST Key diff
-		SelectorSTKeyDiffHi:        SelectorSTKeyDiffHi,
-		SelectorSTKeyDiffLo:        SelectorSTKeyDiffLo,
-		ComputeSelectorSTKeyDiffHi: ComputeSelectorSTKeyDiffHi,
-		ComputeSelectorSTKeyDiffLo: ComputeSelectorSTKeyDiffLo,
+		SelectorSTKeyDiffHi:        selectorSTKeyDiffHi,
+		SelectorSTKeyDiffLo:        selectorSTKeyDiffLo,
+		ComputeSelectorSTKeyDiffHi: computeSelectorSTKeyDiffHi,
+		ComputeSelectorSTKeyDiffLo: computeSelectorSTKeyDiffLo,
 		// Block Number Diff
-		SelectorBlockNoDiff:        SelectorBlockNoDiff,
-		ComputeSelectorBlockNoDiff: ComputeSelectorBlockNoDiff,
+		SelectorBlockNoDiff:        selectorBlockNoDiff,
+		ComputeSelectorBlockNoDiff: computeSelectorBlockNoDiff,
 	}
 
 	return res
@@ -229,7 +257,7 @@ func accountIntegrationDefineInitial(comp *wizard.CompiledIOP, ss Module, smc Hu
 	var (
 		filterArith = comp.InsertCommit(0,
 			"FILTER_CONNECTOR_SUMMARY_ARITHMETIZATION_ACCOUNT_INITIAL_ARITHMETIZATION",
-			smc.AddressHI.Size(),
+			smc.AddressHI[0].Size(),
 		)
 
 		filterSummary = comp.InsertCommit(0,
@@ -237,26 +265,29 @@ func accountIntegrationDefineInitial(comp *wizard.CompiledIOP, ss Module, smc Hu
 			ss.IsStorage.Size(),
 		)
 
-		stateSummaryTable = []ifaces.Column{ss.Account.Address,
-			ss.Account.Initial.Balance,
-			ss.Account.Initial.Nonce,
-			ss.Account.Initial.CodeSize,
-			ss.Account.Initial.ExpectedHubCodeHash.Hi,
-			ss.Account.Initial.ExpectedHubCodeHash.Lo,
-			ss.BatchNumber,
-			ss.Account.Initial.Exists,
-		}
+		stateSummaryTable []ifaces.Column
 
-		arithTable = []ifaces.Column{smc.Address,
-			smc.BalanceOld,
-			smc.Nonce,
-			smc.CodeSizeOld,
-			smc.CodeHashHI,
-			smc.CodeHashLO,
-			smc.BlockNumber,
-			smc.Exists,
-		}
+		arithTable []ifaces.Column
 	)
+
+	arithTable = append(arithTable, smc.Address[:]...)
+	arithTable = append(arithTable, smc.BalanceOld[:]...)
+	arithTable = append(arithTable, smc.Nonce[:]...)
+	arithTable = append(arithTable, smc.CodeSizeOld[:]...)
+	arithTable = append(arithTable, smc.CodeHashHI[:]...)
+	arithTable = append(arithTable, smc.CodeHashLO[:]...)
+	arithTable = append(arithTable, smc.BlockNumber[:]...)
+	arithTable = append(arithTable,
+		smc.Exists,
+	)
+
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Address[:]...)
+	stateSummaryTable = append(stateSummaryTable, ss.BatchNumber, ss.Account.Initial.Exists)
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Initial.ExpectedHubCodeHash.Hi[:]...)
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Initial.ExpectedHubCodeHash.Lo[:]...)
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Initial.CodeSize[:]...)
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Initial.Balance[:]...)
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Initial.Nonce[:]...)
 
 	// comp.InsertInclusionDoubleConditional(0,
 	// 	"LOOKUP_STATE_MGR_ARITH_TO_STATE_SUMMARY_INIT_ACCOUNT",
@@ -354,28 +385,29 @@ For each block, these lookups will check the consistency of the final account da
 the corresponding columns in the arithmetization.
 */
 func accountIntegrationDefineFinal(comp *wizard.CompiledIOP, ss Module, smc HubColumnSet) {
-	filterArith := comp.InsertCommit(0, "FILTER_CONNECTOR_SUMMARY_ARITHMETIZATION_ACCOUNT_FINAL_ARITHMETIZATION", smc.AddressHI.Size())
+	filterArith := comp.InsertCommit(0, "FILTER_CONNECTOR_SUMMARY_ARITHMETIZATION_ACCOUNT_FINAL_ARITHMETIZATION", smc.AddressHI[0].Size())
 	filterSummary := comp.InsertCommit(0, "FILTER_CONNECTOR_SUMMARY_ARITHMETIZATION_ACCOUNT_FINAL_SUMMARY", ss.IsStorage.Size())
-	stateSummaryTable := []ifaces.Column{
-		ss.Account.Address,
-		ss.Account.Final.Balance,
-		ss.Account.Final.Nonce,
-		ss.Account.Final.CodeSize,
-		ss.Account.Final.ExpectedHubCodeHash.Hi,
-		ss.Account.Final.ExpectedHubCodeHash.Lo,
-		ss.BatchNumber,
-		ss.Account.Final.Exists,
-	}
-	arithTable := []ifaces.Column{
-		smc.Address,
-		smc.BalanceNew,
-		smc.NonceNew,
-		smc.CodeSizeNew,
-		smc.CodeHashHINew,
-		smc.CodeHashLONew,
-		smc.BlockNumber,
+	var stateSummaryTable []ifaces.Column
+
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Address[:]...)
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Final.Exists, ss.BatchNumber)
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Final.ExpectedHubCodeHash.Hi[:]...)
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Final.ExpectedHubCodeHash.Lo[:]...)
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Final.CodeSize[:]...)
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Final.Balance[:]...)
+	stateSummaryTable = append(stateSummaryTable, ss.Account.Final.Nonce[:]...)
+
+	var arithTable []ifaces.Column
+	arithTable = append(arithTable, smc.Address[:]...)
+	arithTable = append(arithTable, smc.BalanceNew[:]...)
+	arithTable = append(arithTable, smc.NonceNew[:]...)
+	arithTable = append(arithTable, smc.CodeSizeNew[:]...)
+	arithTable = append(arithTable, smc.CodeHashHINew[:]...)
+	arithTable = append(arithTable, smc.CodeHashLONew[:]...)
+	arithTable = append(arithTable, smc.BlockNumber[:]...)
+	arithTable = append(arithTable,
 		smc.ExistsNew,
-	}
+	)
 
 	// comp.InsertInclusionDoubleConditional(0, "LOOKUP_STATE_MGR_ARITH_TO_STATE_SUMMARY_FINAL_ACCOUNT", stateSummaryTable, arithTable, filterSummary, filterArith)
 	comp.InsertInclusionDoubleConditional(0, "LOOKUP_STATE_MGR_ARITH_TO_STATE_SUMMARY_FINAL_ACCOUNT_REVERSED", arithTable, stateSummaryTable, filterArith, filterSummary)
@@ -459,29 +491,28 @@ For each block, these lookups will check the consistency of the initial storage 
 the corresponding columns in the arithmetization.
 */
 func storageIntegrationDefineInitial(comp *wizard.CompiledIOP, ss Module, smc HubColumnSet, sc scpSelector) {
-	filterArith := comp.InsertCommit(0, "FILTER_CONNECTOR_SUMMARY_ARITHMETIZATION_STORAGE_INITIAL_ARITHMETIZATION", smc.AddressHI.Size())
-	filterSummary := comp.InsertCommit(0, "FILTER_CONNECTOR_SUMMARY_ARITHMETIZATION_STORAGE_INITIAL_SUMMARY", ss.Account.Address.Size())
+	filterArith := comp.InsertCommit(0, "FILTER_CONNECTOR_SUMMARY_ARITHMETIZATION_STORAGE_INITIAL_ARITHMETIZATION", smc.AddressHI[0].Size())
+	filterSummary := comp.InsertCommit(0, "FILTER_CONNECTOR_SUMMARY_ARITHMETIZATION_STORAGE_INITIAL_SUMMARY", ss.Account.Address[0].Size())
 
-	filterArithReversed := comp.InsertCommit(0, "FILTER_CONNECTOR_SUMMARY_ARITHMETIZATION_STORAGE_INITIAL_ARITHMETIZATION_REVERSED", smc.AddressHI.Size())
+	filterArithReversed := comp.InsertCommit(0, "FILTER_CONNECTOR_SUMMARY_ARITHMETIZATION_STORAGE_INITIAL_ARITHMETIZATION_REVERSED", smc.AddressHI[0].Size())
 
 	isExceptionalOperation := comp.Columns.GetHandle("hub.scp_EXCEPTIONAL_OPERATION")
 
-	summaryTable := []ifaces.Column{
-		ss.Account.Address,
-		ss.Storage.Key.Hi,
-		ss.Storage.Key.Lo,
-		ss.Storage.OldValue.Hi,
-		ss.Storage.OldValue.Lo,
-		ss.BatchNumber,
-	}
-	arithTable := []ifaces.Column{
-		smc.Address,
-		smc.KeyHI,
-		smc.KeyLO,
-		smc.ValueHICurr,
-		smc.ValueLOCurr,
-		smc.BlockNumber,
-	}
+	var summaryTable []ifaces.Column
+	summaryTable = append(summaryTable, ss.Account.Address[:]...)
+	summaryTable = append(summaryTable, ss.BatchNumber)
+	summaryTable = append(summaryTable, ss.Storage.Key.Hi[:]...)
+	summaryTable = append(summaryTable, ss.Storage.Key.Lo[:]...)
+	summaryTable = append(summaryTable, ss.Storage.OldValue.Hi[:]...)
+	summaryTable = append(summaryTable, ss.Storage.OldValue.Lo[:]...)
+	summaryTable = append(summaryTable, smc.BlockNumber[:]...)
+
+	var arithTable []ifaces.Column
+	arithTable = append(arithTable, smc.Address[:]...)
+	arithTable = append(arithTable, smc.KeyHI[:]...)
+	arithTable = append(arithTable, smc.KeyLO[:]...)
+	arithTable = append(arithTable, smc.ValueHICurr[:]...)
+	arithTable = append(arithTable, smc.ValueLOCurr[:]...)
 	// comp.InsertInclusionDoubleConditional(
 	// 	0,
 	// 	"LOOKUP_STATE_MGR_ARITH_TO_STATE_SUMMARY_INIT_STORAGE",
@@ -563,12 +594,17 @@ func storageIntegrationAssignInitial(run *wizard.ProverRuntime, ss Module, smc H
 	filterSummary := smartvectors.Mul(ss.IsStorage.GetColAssignment(run), ss.IsInitialDeployment.GetColAssignment(run))
 	run.AssignColumn("FILTER_CONNECTOR_SUMMARY_ARITHMETIZATION_STORAGE_INITIAL_SUMMARY", filterSummary)
 
-	selectorMinDeplBlock := make([]field.Element, smc.AddressHI.Size())
+	selectorMinDeplBlock := make([]field.Element, smc.AddressHI[0].Size())
 
 	for index := range selectorMinDeplBlock {
-		minDeplBlock := smc.MinDeplBlock.GetColAssignmentAt(run, index)
-		deplNumber := smc.DeploymentNumber.GetColAssignmentAt(run, index)
-		if minDeplBlock.Equal(&deplNumber) {
+		var deplEqual [common.NbLimbU32]bool
+		for i := range common.NbLimbU32 {
+			minDeplBlock := smc.MinDeplBlock[i].GetColAssignmentAt(run, index)
+			deplNumber := smc.DeploymentNumber[i].GetColAssignmentAt(run, index)
+			deplEqual[i] = minDeplBlock.Equal(&deplNumber)
+		}
+
+		if deplEqual[0] && deplEqual[1] {
 			selectorMinDeplBlock[index].SetOne()
 		}
 	}
@@ -577,7 +613,7 @@ func storageIntegrationAssignInitial(run *wizard.ProverRuntime, ss Module, smc H
 		svSelectorMinDeplBlock           = smartvectors.NewRegular(selectorMinDeplBlock)
 		isExceptionalOperation           = run.Spec.Columns.GetHandle("hub.scp_EXCEPTIONAL_OPERATION")
 		isExceptionalOperationSV         = isExceptionalOperation.GetColAssignment(run)
-		isNotExceptionalOperationCompact = make([]field.Element, 0, smc.AddressHI.Size()/16)
+		isNotExceptionalOperationCompact = make([]field.Element, 0, smc.AddressHI[0].Size()/16)
 	)
 
 	for v := range isExceptionalOperationSV.IterateCompact() {
@@ -631,43 +667,43 @@ the corresponding columns in the arithmetization.
 func storageIntegrationDefineFinal(comp *wizard.CompiledIOP, ss Module, smc HubColumnSet, sc scpSelector) {
 
 	var (
-		summaryTable = []ifaces.Column{
-			ss.Account.Address,
-			ss.Storage.Key.Hi,
-			ss.Storage.Key.Lo,
-			ss.Storage.NewValue.Hi,
-			ss.Storage.NewValue.Lo,
-			ss.BatchNumber,
-		}
+		summaryTable []ifaces.Column
 
-		arithTable = []ifaces.Column{smc.Address,
-			smc.KeyHI,
-			smc.KeyLO,
-			smc.ValueHINext,
-			smc.ValueLONext,
-			smc.BlockNumber,
-		}
+		arithTable = smc.Address[:]
 
 		filterArith = comp.InsertCommit(0,
 			"FILTER_CONNECTOR_SUMMARY_ARITHMETIZATION_STORAGE_FINAL_ARITHMETIZATION",
-			smc.AddressHI.Size(),
+			smc.AddressHI[0].Size(),
 		)
 
 		filterArithReversed = comp.InsertCommit(0,
 			"FILTER_CONNECTOR_SUMMARY_ARITHMETIZATION_STORAGE_FINAL_ARITHMETIZATION_REVERSED",
-			smc.AddressHI.Size(),
+			smc.AddressHI[0].Size(),
 		)
 
 		filterSummary = comp.InsertCommit(0,
 			"FILTER_CONNECTOR_SUMMARY_ARITHMETIZATION_STORAGE_FINAL_SUMMARY",
-			ss.Account.Address.Size(),
+			ss.Account.Address[0].Size(),
 		)
 
 		filterAccountInsert = comp.InsertCommit(0,
 			"FILTER_CONNECTOR_HUB_STATE_SUMMARY_ACCOUNT_INSERT_FILTER",
-			smc.AddressHI.Size(),
+			smc.AddressHI[0].Size(),
 		)
 	)
+
+	arithTable = append(arithTable, smc.BlockNumber[:]...)
+	arithTable = append(arithTable, smc.KeyHI[:]...)
+	arithTable = append(arithTable, smc.KeyLO[:]...)
+	arithTable = append(arithTable, smc.ValueHINext[:]...)
+	arithTable = append(arithTable, smc.ValueLONext[:]...)
+
+	summaryTable = append(summaryTable, ss.Account.Address[:]...)
+	summaryTable = append(summaryTable, ss.BatchNumber)
+	summaryTable = append(summaryTable, ss.Storage.Key.Hi[:]...)
+	summaryTable = append(summaryTable, ss.Storage.Key.Lo[:]...)
+	summaryTable = append(summaryTable, ss.Storage.NewValue.Hi[:]...)
+	summaryTable = append(summaryTable, ss.Storage.NewValue.Lo[:]...)
 
 	// comp.InsertInclusionDoubleConditional(0,
 	// 	"LOOKUP_STATE_MGR_ARITH_TO_STATE_SUMMARY_FINAL_STORAGE",
@@ -832,12 +868,17 @@ func storageIntegrationDefineFinal(comp *wizard.CompiledIOP, ss Module, smc HubC
 storageIntegrationAssignFinal assigns the columns used to check initial storage data consistency using the lookups from StorageIntegrationDefineFinal
 */
 func storageIntegrationAssignFinal(run *wizard.ProverRuntime, ss Module, smc HubColumnSet) {
-	selectorMaxDeplBlock := make([]field.Element, smc.AddressHI.Size())
+	selectorMaxDeplBlock := make([]field.Element, smc.AddressHI[0].Size())
 	parallel.Execute(len(selectorMaxDeplBlock), func(start, stop int) {
 		for index := start; index < stop; index++ {
-			maxDeplBlock := smc.MaxDeplBlock.GetColAssignmentAt(run, index)
-			deplNumber := smc.DeploymentNumber.GetColAssignmentAt(run, index)
-			if maxDeplBlock.Equal(&deplNumber) {
+			var deplEqual [common.NbLimbU32]bool
+			for i := range common.NbLimbU32 {
+				maxDeplBlock := smc.MaxDeplBlock[i].GetColAssignmentAt(run, index)
+				deplNumber := smc.DeploymentNumber[i].GetColAssignmentAt(run, index)
+				deplEqual[i] = maxDeplBlock.Equal(&deplNumber)
+			}
+
+			if deplEqual[0] && deplEqual[1] {
 				selectorMaxDeplBlock[index].SetOne()
 			}
 		}
@@ -854,7 +895,7 @@ func storageIntegrationAssignFinal(run *wizard.ProverRuntime, ss Module, smc Hub
 	// arithmetization to state summary lookups.
 	existsFirstInBlock := run.Spec.Columns.GetHandle("hub.scp_EXISTS_FIRST_IN_BLOCK")
 	existsFinalInBlock := run.Spec.Columns.GetHandle("hub.scp_EXISTS_FINAL_IN_BLOCK")
-	filterAccountInsert := make([]field.Element, smc.AddressHI.Size())
+	filterAccountInsert := make([]field.Element, smc.AddressHI[0].Size())
 	lastSegmentStart := 0
 	for index := range filterAccountInsert {
 		filterAccountInsert[index].SetOne() // always set the filter as one, unless we detect an insertion segment
@@ -874,12 +915,16 @@ func storageIntegrationAssignFinal(run *wizard.ProverRuntime, ss Module, smc Hub
 					// we are indeed dealing with an insertion segment, check if indeed all the storage values are 0
 					allStorageIsZero := true
 					for j := lastSegmentStart; j <= index; j++ {
-						valueCurrentHi := smc.ValueHICurr.GetColAssignmentAt(run, j)
-						valueCurrentLo := smc.ValueLOCurr.GetColAssignmentAt(run, j)
-						valueNextHi := smc.ValueHINext.GetColAssignmentAt(run, j)
-						valueNextLo := smc.ValueLONext.GetColAssignmentAt(run, j)
-						if !valueCurrentHi.IsZero() || !valueCurrentLo.IsZero() || !valueNextHi.IsZero() || !valueNextLo.IsZero() {
-							allStorageIsZero = false
+						for i := range common.NbLimbU128 {
+							valueCurrentHi := smc.ValueHICurr[i].GetColAssignmentAt(run, j)
+							valueCurrentLo := smc.ValueLOCurr[i].GetColAssignmentAt(run, j)
+							valueNextHi := smc.ValueHINext[i].GetColAssignmentAt(run, j)
+							valueNextLo := smc.ValueLONext[i].GetColAssignmentAt(run, j)
+
+							if !valueCurrentHi.IsZero() || !valueCurrentLo.IsZero() || !valueNextHi.IsZero() || !valueNextLo.IsZero() {
+								allStorageIsZero = false
+								break
+							}
 						}
 					}
 
@@ -902,7 +947,7 @@ func storageIntegrationAssignFinal(run *wizard.ProverRuntime, ss Module, smc Hub
 	//filterTxExec := run.Spec.Columns.GetHandle("hub.scp_TX_EXEC")
 	isSLoad := run.Spec.Columns.GetHandle("hub.scp_SLOAD_OPERATION")
 	isExceptionalOperation := run.Spec.Columns.GetHandle("hub.scp_EXCEPTIONAL_OPERATION")
-	isNotExceptionalSLoad := make([]field.Element, smc.AddressHI.Size())
+	isNotExceptionalSLoad := make([]field.Element, smc.AddressHI[0].Size())
 
 	for i := range isNotExceptionalSLoad {
 		fieldOne := field.One()
